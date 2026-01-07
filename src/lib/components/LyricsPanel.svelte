@@ -82,9 +82,13 @@
             {:else if $lyricsData && $lyricsData.lines.length > 0}
                 <div class="lyrics-lines">
                     {#each $lyricsData.lines as line, i}
+                        {@const distance = Math.abs(i - $activeLine)}
                         <div
                             class="lyric-line"
                             class:active={i === $activeLine}
+                            class:near={distance === 1}
+                            class:mid={distance === 2}
+                            class:far={distance >= 3}
                             class:past={i < $activeLine}
                             bind:this={lineElements[i]}
                         >
@@ -230,28 +234,58 @@
     .lyrics-lines {
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-lg);
+        gap: var(--spacing-md);
         padding-bottom: 50%;
+        padding-top: var(--spacing-xl);
     }
 
     .lyric-line {
-        font-size: 1.25rem;
-        font-weight: 500;
-        line-height: 1.6;
-        color: var(--text-subdued);
-        transition: all 0.3s ease;
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.4);
+        transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
         cursor: default;
+        filter: blur(0px);
     }
 
-    .lyric-line.past {
-        color: var(--text-secondary);
-        opacity: 0.6;
+    /* Distance-based blur effect like Apple Music */
+    .lyric-line.near {
+        color: rgba(255, 255, 255, 0.5);
+        filter: blur(0.5px);
+    }
+
+    .lyric-line.mid {
+        color: rgba(255, 255, 255, 0.35);
+        filter: blur(1px);
+    }
+
+    .lyric-line.far {
+        color: rgba(255, 255, 255, 0.25);
+        filter: blur(1.5px);
     }
 
     .lyric-line.active {
         color: var(--text-primary);
-        font-size: 1.5rem;
+        font-size: 1.35rem;
+        font-weight: 700;
+        filter: blur(0px);
         transform: scale(1.02);
+    }
+
+    .lyric-line.past.near {
+        color: rgba(255, 255, 255, 0.45);
+        filter: blur(0.8px);
+    }
+
+    .lyric-line.past.mid {
+        color: rgba(255, 255, 255, 0.3);
+        filter: blur(1.2px);
+    }
+
+    .lyric-line.past.far {
+        color: rgba(255, 255, 255, 0.2);
+        filter: blur(2px);
     }
 
     .lyric-word {

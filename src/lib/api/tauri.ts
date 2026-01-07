@@ -47,6 +47,8 @@ export interface Track {
     track_number: number | null;
     duration: number | null;
     album_id: number | null;
+    format: string | null;
+    bitrate: number | null;
 }
 
 export interface Album {

@@ -19,6 +19,8 @@ pub fn extract_metadata(path: &str) -> Option<TrackInsert> {
 
     let properties = tagged_file.properties();
     let duration = properties.duration().as_secs() as i32;
+    let bitrate = properties.audio_bitrate().map(|b| b as i32);
+    let format = Some(format!("{:?}", tagged_file.file_type()));
 
     // Try to get tags
     let tag = tagged_file
@@ -49,12 +51,16 @@ pub fn extract_metadata(path: &str) -> Option<TrackInsert> {
                 track_number,
                 duration: Some(duration),
                 album_art,
+                format,
+                bitrate,
             })
         }
         None => {
             // No tags found, use fallback
             let mut track = create_fallback_metadata(path);
             track.duration = Some(duration);
+            track.format = format;
+            track.bitrate = bitrate;
             Some(track)
         }
     }
@@ -69,6 +75,8 @@ fn create_fallback_metadata(path: &Path) -> TrackInsert {
         track_number: None,
         duration: None,
         album_art: None,
+        format: None,
+        bitrate: None,
     }
 }
 

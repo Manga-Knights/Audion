@@ -22,6 +22,8 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             track_number INTEGER,
             duration INTEGER,
             album_id INTEGER,
+            format TEXT,
+            bitrate INTEGER,
             FOREIGN KEY (album_id) REFERENCES albums(id)
         );
 
@@ -46,8 +48,12 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
         CREATE INDEX IF NOT EXISTS idx_tracks_album ON tracks(album);
         CREATE INDEX IF NOT EXISTS idx_tracks_album_id ON tracks(album_id);
-        "
+        ",
     )?;
-    
+
+    // Migrations for existing databases
+    let _ = conn.execute("ALTER TABLE tracks ADD COLUMN format TEXT", []);
+    let _ = conn.execute("ALTER TABLE tracks ADD COLUMN bitrate INTEGER", []);
+
     Ok(())
 }

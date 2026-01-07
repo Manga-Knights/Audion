@@ -2,6 +2,7 @@
     import type { Track } from "$lib/api/tauri";
     import { formatDuration } from "$lib/api/tauri";
     import { playTracks, currentTrack, isPlaying } from "$lib/stores/player";
+    import { contextMenu } from "$lib/stores/ui";
 
     export let tracks: Track[] = [];
     export let title: string = "Tracks";
@@ -13,6 +14,28 @@
 
     function handleTrackDoubleClick(index: number) {
         playTracks(tracks, index);
+    }
+
+    function handleContextMenu(e: MouseEvent, index: number) {
+        e.preventDefault();
+        const track = tracks[index];
+        contextMenu.set({
+            visible: true,
+            x: e.clientX,
+            y: e.clientY,
+            items: [
+                {
+                    label: "Play",
+                    action: () => playTracks(tracks, index),
+                },
+                {
+                    label: "Add to Queue",
+                    action: () => {
+                        console.log("Add to queue", track); /* TODO */
+                    },
+                },
+            ],
+        });
     }
 
     function isCurrentTrack(track: Track): boolean {
@@ -43,6 +66,7 @@
                 class:playing={isCurrentTrack(track)}
                 on:click={() => handleTrackClick(index)}
                 on:dblclick={() => handleTrackDoubleClick(index)}
+                on:contextmenu={(e) => handleContextMenu(e, index)}
             >
                 <span class="col-num">
                     {#if isCurrentTrack(track) && $isPlaying}
@@ -62,9 +86,27 @@
                     {/if}
                 </span>
                 <span class="col-title">
-                    <span class="track-name truncate"
-                        >{track.title || "Unknown Title"}</span
-                    >
+                    <div class="title-row">
+                        <span class="track-name truncate"
+                            >{track.title || "Unknown Title"}</span
+                        >
+                        {#if track.format}
+                            <span
+                                class="quality-tag"
+                                class:high-quality={track.format
+                                    .toLowerCase()
+                                    .includes("flac") ||
+                                    track.format
+                                        .toLowerCase()
+                                        .includes("wav") ||
+                                    (track.bitrate && track.bitrate >= 320)}
+                            >
+                                {track.format
+                                    .replace("Mpeg", "MP3")
+                                    .toUpperCase()}
+                            </span>
+                        {/if}
+                    </div>
                     <span class="track-artist truncate"
                         >{track.artist || "Unknown Artist"}</span
                     >
@@ -181,12 +223,38 @@
         display: flex;
         flex-direction: column;
         min-width: 0;
+        justify-content: center;
+    }
+
+    .title-row {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        min-width: 0;
     }
 
     .track-name {
         font-size: 0.9375rem;
         font-weight: 500;
         color: var(--text-primary);
+    }
+
+    .quality-tag {
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 1px 4px;
+        border-radius: var(--radius-sm);
+        background-color: var(--bg-highlight);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .quality-tag.high-quality {
+        color: var(--accent-primary);
+        border-color: var(--accent-primary);
+        background-color: rgba(29, 185, 84, 0.1);
     }
 
     .track-artist {

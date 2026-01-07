@@ -19,6 +19,7 @@
         setAudioElement,
     } from "$lib/stores/player";
     import { lyricsVisible, toggleLyrics } from "$lib/stores/lyrics";
+    import { isFullScreen, toggleFullScreen } from "$lib/stores/ui";
     import { formatDuration, getAlbumArtSrc, getAlbum } from "$lib/api/tauri";
     import type { Album } from "$lib/api/tauri";
 
@@ -65,6 +66,17 @@
         const rect = volumeBarElement.getBoundingClientRect();
         const pos = (e.clientX - rect.left) / rect.width;
         setVolume(Math.max(0, Math.min(1, pos)));
+    }
+
+    function handleVolumeKey(e: KeyboardEvent) {
+        const step = 0.05;
+        if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+            e.preventDefault();
+            setVolume(Math.min(1, $volume + step));
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+            e.preventDefault();
+            setVolume(Math.max(0, $volume - step));
+        }
     }
 
     function getRepeatIcon(mode: "none" | "one" | "all"): string {
@@ -309,6 +321,7 @@
             class="volume-bar"
             bind:this={volumeBarElement}
             on:click={handleVolumeChange}
+            on:keydown={handleVolumeKey}
             role="slider"
             aria-label="Volume"
             aria-valuenow={Math.round($volume * 100)}
@@ -321,6 +334,36 @@
             </div>
             <div class="volume-thumb" style="left: {$volume * 100}%"></div>
         </div>
+        <button
+            class="icon-btn"
+            class:active={$isFullScreen}
+            on:click={toggleFullScreen}
+            title="Fullscreen"
+        >
+            {#if $isFullScreen}
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                >
+                    <path
+                        d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
+                    />
+                </svg>
+            {:else}
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                >
+                    <path
+                        d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                    />
+                </svg>
+            {/if}
+        </button>
     </div>
 </footer>
 
@@ -330,10 +373,11 @@
         background-color: var(--bg-elevated);
         border-top: 1px solid var(--border-color);
         display: grid;
-        grid-template-columns: 1fr 2fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
         align-items: center;
         padding: 0 var(--spacing-md);
         gap: var(--spacing-md);
+        overflow: hidden;
     }
 
     /* Track info */
@@ -342,6 +386,7 @@
         align-items: center;
         gap: var(--spacing-sm);
         min-width: 0;
+        overflow: hidden;
     }
 
     .album-art {
@@ -401,12 +446,15 @@
         flex-direction: column;
         align-items: center;
         gap: var(--spacing-xs);
+        min-width: 0;
+        overflow: hidden;
     }
 
     .controls-buttons {
         display: flex;
         align-items: center;
         gap: var(--spacing-sm);
+        flex-shrink: 0;
     }
 
     .play-btn {
@@ -419,6 +467,7 @@
         align-items: center;
         justify-content: center;
         transition: all var(--transition-fast);
+        flex-shrink: 0;
     }
 
     .play-btn:hover {
@@ -504,9 +553,13 @@
         align-items: center;
         justify-content: flex-end;
         gap: var(--spacing-sm);
+        min-width: 0;
+        overflow: hidden;
     }
 
     .volume-bar {
-        width: 100px;
+        width: 80px;
+        flex-shrink: 1;
+        min-width: 40px;
     }
 </style>

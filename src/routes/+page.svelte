@@ -5,6 +5,8 @@
   import MainView from "$lib/components/MainView.svelte";
   import PlayerBar from "$lib/components/PlayerBar.svelte";
   import LyricsPanel from "$lib/components/LyricsPanel.svelte";
+  import FullScreenPlayer from "$lib/components/FullScreenPlayer.svelte";
+  import ContextMenu from "$lib/components/ContextMenu.svelte";
   import { loadLibrary, loadPlaylists } from "$lib/stores/library";
   import { isTauri } from "$lib/api/tauri";
 
@@ -70,6 +72,8 @@
       <Sidebar />
       <MainView />
       <LyricsPanel />
+      <FullScreenPlayer />
+      <ContextMenu />
     </div>
     <PlayerBar />
   {/if}

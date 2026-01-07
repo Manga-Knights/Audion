@@ -12,6 +12,8 @@ pub struct Track {
     pub track_number: Option<i32>,
     pub duration: Option<i32>,
     pub album_id: Option<i64>,
+    pub format: Option<String>,
+    pub bitrate: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +47,8 @@ pub struct TrackInsert {
     pub track_number: Option<i32>,
     pub duration: Option<i32>,
     pub album_art: Option<String>,
+    pub format: Option<String>,
+    pub bitrate: Option<i32>,
 }
 
 // Track operations
@@ -63,15 +67,17 @@ pub fn insert_or_update_track(conn: &Connection, track: &TrackInsert) -> Result<
     };
 
     conn.execute(
-        "INSERT INTO tracks (path, title, artist, album, track_number, duration, album_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        "INSERT INTO tracks (path, title, artist, album, track_number, duration, album_id, format, bitrate)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
          ON CONFLICT(path) DO UPDATE SET
             title = excluded.title,
             artist = excluded.artist,
             album = excluded.album,
             track_number = excluded.track_number,
             duration = excluded.duration,
-            album_id = excluded.album_id",
+            album_id = excluded.album_id,
+            format = excluded.format,
+            bitrate = excluded.bitrate",
         params![
             track.path,
             track.title,
@@ -80,6 +86,8 @@ pub fn insert_or_update_track(conn: &Connection, track: &TrackInsert) -> Result<
             track.track_number,
             track.duration,
             album_id,
+            track.format,
+            track.bitrate,
         ],
     )?;
 
@@ -121,7 +129,7 @@ fn get_or_create_album(
 
 pub fn get_all_tracks(conn: &Connection) -> Result<Vec<Track>> {
     let mut stmt = conn.prepare(
-        "SELECT id, path, title, artist, album, track_number, duration, album_id 
+        "SELECT id, path, title, artist, album, track_number, duration, album_id, format, bitrate 
          FROM tracks ORDER BY artist, album, track_number, title",
     )?;
 
@@ -136,6 +144,8 @@ pub fn get_all_tracks(conn: &Connection) -> Result<Vec<Track>> {
                 track_number: row.get(5)?,
                 duration: row.get(6)?,
                 album_id: row.get(7)?,
+                format: row.get(8)?,
+                bitrate: row.get(9)?,
             })
         })?
         .collect::<Result<Vec<_>>>()?;
@@ -185,7 +195,7 @@ pub fn get_all_artists(conn: &Connection) -> Result<Vec<Artist>> {
 
 pub fn get_tracks_by_album(conn: &Connection, album_id: i64) -> Result<Vec<Track>> {
     let mut stmt = conn.prepare(
-        "SELECT id, path, title, artist, album, track_number, duration, album_id 
+        "SELECT id, path, title, artist, album, track_number, duration, album_id, format, bitrate 
          FROM tracks WHERE album_id = ?1 ORDER BY track_number, title",
     )?;
 
@@ -200,6 +210,8 @@ pub fn get_tracks_by_album(conn: &Connection, album_id: i64) -> Result<Vec<Track
                 track_number: row.get(5)?,
                 duration: row.get(6)?,
                 album_id: row.get(7)?,
+                format: row.get(8)?,
+                bitrate: row.get(9)?,
             })
         })?
         .collect::<Result<Vec<_>>>()?;
@@ -209,7 +221,7 @@ pub fn get_tracks_by_album(conn: &Connection, album_id: i64) -> Result<Vec<Track
 
 pub fn get_tracks_by_artist(conn: &Connection, artist: &str) -> Result<Vec<Track>> {
     let mut stmt = conn.prepare(
-        "SELECT id, path, title, artist, album, track_number, duration, album_id 
+        "SELECT id, path, title, artist, album, track_number, duration, album_id, format, bitrate 
          FROM tracks WHERE artist = ?1 ORDER BY album, track_number, title",
     )?;
 
@@ -224,6 +236,8 @@ pub fn get_tracks_by_artist(conn: &Connection, artist: &str) -> Result<Vec<Track
                 track_number: row.get(5)?,
                 duration: row.get(6)?,
                 album_id: row.get(7)?,
+                format: row.get(8)?,
+                bitrate: row.get(9)?,
             })
         })?
         .collect::<Result<Vec<_>>>()?;
@@ -271,7 +285,7 @@ pub fn get_all_playlists(conn: &Connection) -> Result<Vec<Playlist>> {
 
 pub fn get_playlist_tracks(conn: &Connection, playlist_id: i64) -> Result<Vec<Track>> {
     let mut stmt = conn.prepare(
-        "SELECT t.id, t.path, t.title, t.artist, t.album, t.track_number, t.duration, t.album_id 
+        "SELECT t.id, t.path, t.title, t.artist, t.album, t.track_number, t.duration, t.album_id, t.format, t.bitrate 
          FROM tracks t
          INNER JOIN playlist_tracks pt ON t.id = pt.track_id
          WHERE pt.playlist_id = ?1
@@ -289,6 +303,8 @@ pub fn get_playlist_tracks(conn: &Connection, playlist_id: i64) -> Result<Vec<Tr
                 track_number: row.get(5)?,
                 duration: row.get(6)?,
                 album_id: row.get(7)?,
+                format: row.get(8)?,
+                bitrate: row.get(9)?,
             })
         })?
         .collect::<Result<Vec<_>>>()?;
