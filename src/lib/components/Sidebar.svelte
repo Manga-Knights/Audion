@@ -1,0 +1,391 @@
+<script lang="ts">
+    import { onMount } from "svelte";
+    import {
+        playlists,
+        loadPlaylists,
+        trackCount,
+        albumCount,
+        artistCount,
+    } from "$lib/stores/library";
+    import {
+        currentView,
+        goToTracks,
+        goToAlbums,
+        goToArtists,
+        goToPlaylists,
+        goToPlaylistDetail,
+    } from "$lib/stores/view";
+    import { selectMusicFolder, scanMusic } from "$lib/api/tauri";
+    import { loadLibrary } from "$lib/stores/library";
+
+    let isScanning = false;
+    let scanError: string | null = null;
+
+    async function handleAddFolder() {
+        try {
+            const path = await selectMusicFolder();
+            if (path) {
+                isScanning = true;
+                scanError = null;
+                const result = await scanMusic([path]);
+
+                if (result.errors.length > 0) {
+                    console.warn("Scan errors:", result.errors);
+                }
+
+                // Reload library after scan
+                await loadLibrary();
+                await loadPlaylists();
+            }
+        } catch (error) {
+            scanError = error instanceof Error ? error.message : String(error);
+            console.error("Scan failed:", error);
+        } finally {
+            isScanning = false;
+        }
+    }
+
+    function isActive(viewType: string): boolean {
+        return (
+            $currentView.type === viewType ||
+            ($currentView.type === "album-detail" && viewType === "albums") ||
+            ($currentView.type === "artist-detail" && viewType === "artists") ||
+            ($currentView.type === "playlist-detail" &&
+                viewType === "playlists")
+        );
+    }
+
+    onMount(() => {
+        loadPlaylists();
+    });
+</script>
+
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
+                <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                />
+            </svg>
+            <span class="logo-text">Rlist</span>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <section class="nav-section">
+            <h3 class="nav-section-title">Library</h3>
+            <ul class="nav-list">
+                <li>
+                    <button
+                        class="nav-item"
+                        class:active={isActive("tracks")}
+                        on:click={goToTracks}
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            width="24"
+                            height="24"
+                        >
+                            <path
+                                d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"
+                            />
+                        </svg>
+                        <span>All Tracks</span>
+                        <span class="nav-count">{$trackCount}</span>
+                    </button>
+                </li>
+                <li>
+                    <button
+                        class="nav-item"
+                        class:active={isActive("albums")}
+                        on:click={goToAlbums}
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            width="24"
+                            height="24"
+                        >
+                            <path
+                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"
+                            />
+                        </svg>
+                        <span>Albums</span>
+                        <span class="nav-count">{$albumCount}</span>
+                    </button>
+                </li>
+                <li>
+                    <button
+                        class="nav-item"
+                        class:active={isActive("artists")}
+                        on:click={goToArtists}
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            width="24"
+                            height="24"
+                        >
+                            <path
+                                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                            />
+                        </svg>
+                        <span>Artists</span>
+                        <span class="nav-count">{$artistCount}</span>
+                    </button>
+                </li>
+            </ul>
+        </section>
+
+        <section class="nav-section">
+            <div class="nav-section-header">
+                <h3 class="nav-section-title">Playlists</h3>
+            </div>
+            <ul class="nav-list">
+                <li>
+                    <button
+                        class="nav-item"
+                        class:active={isActive("playlists")}
+                        on:click={goToPlaylists}
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            width="24"
+                            height="24"
+                        >
+                            <path
+                                d="M19 9H5V7h14v2zm0 4H5v-2h14v2zm-8 4H5v-2h6v2zm8-2v2h-2v2h-2v-2h-2v-2h2v-2h2v2h2z"
+                            />
+                        </svg>
+                        <span>All Playlists</span>
+                        <span class="nav-count">{$playlists.length}</span>
+                    </button>
+                </li>
+                {#each $playlists as playlist}
+                    <li>
+                        <button
+                            class="nav-item playlist-item"
+                            class:active={$currentView.type ===
+                                "playlist-detail" &&
+                                $currentView.id === playlist.id}
+                            on:click={() => goToPlaylistDetail(playlist.id)}
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                                width="24"
+                                height="24"
+                            >
+                                <path
+                                    d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"
+                                />
+                            </svg>
+                            <span class="truncate">{playlist.name}</span>
+                        </button>
+                    </li>
+                {/each}
+            </ul>
+        </section>
+    </nav>
+
+    <div class="sidebar-footer">
+        <button
+            class="add-folder-btn"
+            on:click={handleAddFolder}
+            disabled={isScanning}
+        >
+            {#if isScanning}
+                <svg
+                    class="animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    width="20"
+                    height="20"
+                >
+                    <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke-width="2"
+                        opacity="0.25"
+                    />
+                    <path
+                        d="M12 2a10 10 0 0 1 10 10"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                    />
+                </svg>
+                <span>Scanning...</span>
+            {:else}
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                >
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+                <span>Add Music Folder</span>
+            {/if}
+        </button>
+        {#if scanError}
+            <p class="scan-error">{scanError}</p>
+        {/if}
+    </div>
+</aside>
+
+<style>
+    .sidebar {
+        width: var(--sidebar-width);
+        height: 100%;
+        background-color: var(--bg-base);
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--border-color);
+    }
+
+    .sidebar-header {
+        padding: var(--spacing-md);
+        padding-top: var(--spacing-lg);
+    }
+
+    .logo {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        color: var(--accent-primary);
+    }
+
+    .logo-text {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+
+    .sidebar-nav {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-md);
+    }
+
+    .nav-section {
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .nav-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .nav-section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-subdued);
+        margin-bottom: var(--spacing-sm);
+        padding-left: var(--spacing-sm);
+    }
+
+    .nav-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        width: 100%;
+        padding: var(--spacing-sm) var(--spacing-sm);
+        border-radius: var(--radius-sm);
+        color: var(--text-secondary);
+        transition: all var(--transition-fast);
+        text-align: left;
+    }
+
+    .nav-item:hover {
+        color: var(--text-primary);
+        background-color: var(--bg-highlight);
+    }
+
+    .nav-item.active {
+        color: var(--text-primary);
+        background-color: var(--bg-surface);
+    }
+
+    .nav-item svg {
+        flex-shrink: 0;
+        opacity: 0.7;
+    }
+
+    .nav-item.active svg {
+        opacity: 1;
+        color: var(--accent-primary);
+    }
+
+    .nav-count {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--text-subdued);
+    }
+
+    .playlist-item {
+        padding-left: var(--spacing-md);
+    }
+
+    .sidebar-footer {
+        padding: var(--spacing-md);
+        border-top: 1px solid var(--border-color);
+    }
+
+    .add-folder-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-sm);
+        width: 100%;
+        padding: var(--spacing-sm) var(--spacing-md);
+        background-color: var(--bg-surface);
+        color: var(--text-primary);
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all var(--transition-fast);
+    }
+
+    .add-folder-btn:hover:not(:disabled) {
+        background-color: var(--bg-highlight);
+    }
+
+    .add-folder-btn:disabled {
+        opacity: 0.7;
+        cursor: wait;
+    }
+
+    .scan-error {
+        margin-top: var(--spacing-sm);
+        font-size: 0.75rem;
+        color: var(--error-color);
+        text-align: center;
+    }
+
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>

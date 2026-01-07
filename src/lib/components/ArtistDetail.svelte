@@ -1,0 +1,299 @@
+<script lang="ts">
+    import { onMount } from "svelte";
+    import type { Album, Track } from "$lib/api/tauri";
+    import {
+        getAlbumsByArtist,
+        getTracksByArtist,
+        formatDuration,
+    } from "$lib/api/tauri";
+    import { playTracks } from "$lib/stores/player";
+    import { goToArtists, goToAlbumDetail } from "$lib/stores/view";
+    import AlbumGrid from "./AlbumGrid.svelte";
+    import TrackList from "./TrackList.svelte";
+
+    export let artistName: string;
+
+    let albums: Album[] = [];
+    let tracks: Track[] = [];
+    let loading = true;
+    let activeTab: "albums" | "tracks" = "albums";
+
+    $: totalDuration = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
+
+    async function loadArtistData() {
+        loading = true;
+        try {
+            const [albumData, trackData] = await Promise.all([
+                getAlbumsByArtist(artistName),
+                getTracksByArtist(artistName),
+            ]);
+            albums = albumData;
+            tracks = trackData;
+        } catch (error) {
+            console.error("Failed to load artist:", error);
+        } finally {
+            loading = false;
+        }
+    }
+
+    function handlePlayAll() {
+        if (tracks.length > 0) {
+            playTracks(tracks, 0);
+        }
+    }
+
+    function getArtistInitial(name: string): string {
+        return name.charAt(0).toUpperCase();
+    }
+
+    onMount(() => {
+        loadArtistData();
+    });
+
+    // Reload when artistName changes
+    $: artistName, loadArtistData();
+</script>
+
+<div class="artist-detail">
+    {#if loading}
+        <div class="loading">
+            <div class="spinner"></div>
+            <span>Loading artist...</span>
+        </div>
+    {:else}
+        <header class="artist-header">
+            <button class="back-btn" on:click={goToArtists}>
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="24"
+                    height="24"
+                >
+                    <path
+                        d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"
+                    />
+                </svg>
+            </button>
+            <div class="artist-avatar">
+                <span class="artist-initial"
+                    >{getArtistInitial(artistName)}</span
+                >
+            </div>
+            <div class="artist-info">
+                <span class="artist-type">Artist</span>
+                <h1 class="artist-name">{artistName}</h1>
+                <div class="artist-meta">
+                    <span>{albums.length} albums</span>
+                    <span class="separator">•</span>
+                    <span>{tracks.length} songs</span>
+                    <span class="separator">•</span>
+                    <span>{formatDuration(totalDuration)}</span>
+                </div>
+                <div class="artist-actions">
+                    <button
+                        class="btn-primary play-all-btn"
+                        on:click={handlePlayAll}
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            width="24"
+                            height="24"
+                        >
+                            <path d="M8 5v14l11-7z" />
+                        </svg>
+                        Play All
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button
+                class="tab"
+                class:active={activeTab === "albums"}
+                on:click={() => (activeTab = "albums")}
+            >
+                Albums
+            </button>
+            <button
+                class="tab"
+                class:active={activeTab === "tracks"}
+                on:click={() => (activeTab = "tracks")}
+            >
+                All Songs
+            </button>
+        </div>
+
+        <div class="artist-content">
+            {#if activeTab === "albums"}
+                <AlbumGrid {albums} />
+            {:else}
+                <TrackList {tracks} showAlbum={true} />
+            {/if}
+        </div>
+    {/if}
+</div>
+
+<style>
+    .artist-detail {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        gap: var(--spacing-md);
+        color: var(--text-secondary);
+    }
+
+    .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--bg-highlight);
+        border-top-color: var(--accent-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .artist-header {
+        display: flex;
+        gap: var(--spacing-lg);
+        padding: var(--spacing-lg);
+        background: linear-gradient(
+            180deg,
+            var(--bg-surface) 0%,
+            var(--bg-base) 100%
+        );
+        position: relative;
+    }
+
+    .back-btn {
+        position: absolute;
+        top: var(--spacing-md);
+        left: var(--spacing-md);
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-full);
+        background-color: rgba(0, 0, 0, 0.5);
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-fast);
+    }
+
+    .back-btn:hover {
+        background-color: rgba(0, 0, 0, 0.7);
+        transform: scale(1.1);
+    }
+
+    .artist-avatar {
+        width: 200px;
+        height: 200px;
+        border-radius: var(--radius-full);
+        background: linear-gradient(
+            135deg,
+            var(--accent-primary) 0%,
+            #1a1a1a 100%
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .artist-initial {
+        font-size: 4rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .artist-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        min-width: 0;
+    }
+
+    .artist-type {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--text-primary);
+    }
+
+    .artist-name {
+        font-size: 3rem;
+        font-weight: 700;
+        line-height: 1.1;
+        margin: var(--spacing-sm) 0;
+        color: var(--text-primary);
+    }
+
+    .artist-meta {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .separator {
+        color: var(--text-subdued);
+    }
+
+    .artist-actions {
+        display: flex;
+        gap: var(--spacing-md);
+    }
+
+    .play-all-btn {
+        font-size: 1rem;
+        padding: var(--spacing-sm) var(--spacing-xl);
+    }
+
+    .tabs {
+        display: flex;
+        gap: var(--spacing-md);
+        padding: 0 var(--spacing-md);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .tab {
+        padding: var(--spacing-md);
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        transition: all var(--transition-fast);
+    }
+
+    .tab:hover {
+        color: var(--text-primary);
+    }
+
+    .tab.active {
+        color: var(--text-primary);
+        border-bottom-color: var(--accent-primary);
+    }
+
+    .artist-content {
+        flex: 1;
+        overflow-y: auto;
+    }
+</style>

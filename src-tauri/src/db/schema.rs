@@ -1,0 +1,53 @@
+// Database schema initialization
+use rusqlite::{Connection, Result};
+
+pub fn init_schema(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        "
+        -- Albums table
+        CREATE TABLE IF NOT EXISTS albums (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            artist TEXT,
+            art_data TEXT
+        );
+
+        -- Tracks table
+        CREATE TABLE IF NOT EXISTS tracks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT UNIQUE NOT NULL,
+            title TEXT,
+            artist TEXT,
+            album TEXT,
+            track_number INTEGER,
+            duration INTEGER,
+            album_id INTEGER,
+            FOREIGN KEY (album_id) REFERENCES albums(id)
+        );
+
+        -- Playlists table
+        CREATE TABLE IF NOT EXISTS playlists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Playlist tracks junction table
+        CREATE TABLE IF NOT EXISTS playlist_tracks (
+            playlist_id INTEGER NOT NULL,
+            track_id INTEGER NOT NULL,
+            position INTEGER,
+            PRIMARY KEY (playlist_id, track_id),
+            FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
+            FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+        );
+
+        -- Create indexes for faster queries
+        CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
+        CREATE INDEX IF NOT EXISTS idx_tracks_album ON tracks(album);
+        CREATE INDEX IF NOT EXISTS idx_tracks_album_id ON tracks(album_id);
+        "
+    )?;
+    
+    Ok(())
+}

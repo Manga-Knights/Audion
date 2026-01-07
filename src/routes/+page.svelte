@@ -1,0 +1,131 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+  import "../app.css";
+  import Sidebar from "$lib/components/Sidebar.svelte";
+  import MainView from "$lib/components/MainView.svelte";
+  import PlayerBar from "$lib/components/PlayerBar.svelte";
+  import LyricsPanel from "$lib/components/LyricsPanel.svelte";
+  import { loadLibrary, loadPlaylists } from "$lib/stores/library";
+  import { isTauri } from "$lib/api/tauri";
+
+  let isLoading = true;
+  let notInTauri = false;
+
+  onMount(async () => {
+    // Check if we're in Tauri environment
+    if (!isTauri()) {
+      notInTauri = true;
+      isLoading = false;
+      return;
+    }
+
+    try {
+      await Promise.all([loadLibrary(), loadPlaylists()]);
+    } catch (error) {
+      console.error("Failed to load library:", error);
+    } finally {
+      isLoading = false;
+    }
+  });
+</script>
+
+<div class="app-container">
+  {#if notInTauri}
+    <div class="loading-screen">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+          <path
+            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+          />
+        </svg>
+        <span>Rlist</span>
+      </div>
+      <p
+        style="color: var(--text-primary); font-size: 1.1rem; margin-top: 1rem;"
+      >
+        🖥️ Please open the Tauri desktop app
+      </p>
+      <p>This app requires the Tauri desktop window to function.</p>
+      <p style="opacity: 0.7; font-size: 0.8rem;">
+        The Tauri window should open automatically when running <code
+          >npm run tauri dev</code
+        >
+      </p>
+    </div>
+  {:else if isLoading}
+    <div class="loading-screen">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+          <path
+            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+          />
+        </svg>
+        <span>Rlist</span>
+      </div>
+      <div class="loading-spinner"></div>
+      <p>Loading your music library...</p>
+    </div>
+  {:else}
+    <div class="app-layout">
+      <Sidebar />
+      <MainView />
+      <LyricsPanel />
+    </div>
+    <PlayerBar />
+  {/if}
+</div>
+
+<style>
+  .app-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--bg-base);
+  }
+
+  .loading-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-lg);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--accent-primary);
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--bg-highlight);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .loading-screen p {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .app-layout {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+</style>

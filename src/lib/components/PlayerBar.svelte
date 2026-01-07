@@ -1,0 +1,512 @@
+<script lang="ts">
+    import { onMount } from "svelte";
+    import {
+        currentTrack,
+        isPlaying,
+        volume,
+        currentTime,
+        duration,
+        progress,
+        shuffle,
+        repeat,
+        togglePlay,
+        nextTrack,
+        previousTrack,
+        seek,
+        setVolume,
+        toggleShuffle,
+        cycleRepeat,
+        setAudioElement,
+    } from "$lib/stores/player";
+    import { lyricsVisible, toggleLyrics } from "$lib/stores/lyrics";
+    import { formatDuration, getAlbumArtSrc, getAlbum } from "$lib/api/tauri";
+    import type { Album } from "$lib/api/tauri";
+
+    let audioElement: HTMLAudioElement;
+    let seekBarElement: HTMLDivElement;
+    let volumeBarElement: HTMLDivElement;
+    let isSeeking = false;
+    let albumArt: string | null = null;
+
+    // Reactive album art loading
+    $: if ($currentTrack?.album_id) {
+        loadAlbumArt($currentTrack.album_id);
+    } else {
+        albumArt = null;
+    }
+
+    async function loadAlbumArt(albumId: number) {
+        try {
+            const album = await getAlbum(albumId);
+            albumArt = album ? getAlbumArtSrc(album.art_data) : null;
+        } catch {
+            albumArt = null;
+        }
+    }
+
+    function handleSeekStart(e: MouseEvent) {
+        isSeeking = true;
+        handleSeek(e);
+    }
+
+    function handleSeek(e: MouseEvent) {
+        if (!seekBarElement) return;
+        const rect = seekBarElement.getBoundingClientRect();
+        const pos = (e.clientX - rect.left) / rect.width;
+        seek(Math.max(0, Math.min(1, pos)));
+    }
+
+    function handleSeekEnd() {
+        isSeeking = false;
+    }
+
+    function handleVolumeChange(e: MouseEvent) {
+        if (!volumeBarElement) return;
+        const rect = volumeBarElement.getBoundingClientRect();
+        const pos = (e.clientX - rect.left) / rect.width;
+        setVolume(Math.max(0, Math.min(1, pos)));
+    }
+
+    function getRepeatIcon(mode: "none" | "one" | "all"): string {
+        if (mode === "one") return "1";
+        return "";
+    }
+
+    onMount(() => {
+        if (audioElement) {
+            setAudioElement(audioElement);
+        }
+
+        // Global mouse events for seeking
+        const handleGlobalMouseMove = (e: MouseEvent) => {
+            if (isSeeking) handleSeek(e);
+        };
+        const handleGlobalMouseUp = () => {
+            isSeeking = false;
+        };
+
+        window.addEventListener("mousemove", handleGlobalMouseMove);
+        window.addEventListener("mouseup", handleGlobalMouseUp);
+
+        return () => {
+            window.removeEventListener("mousemove", handleGlobalMouseMove);
+            window.removeEventListener("mouseup", handleGlobalMouseUp);
+        };
+    });
+</script>
+
+<footer class="player-bar">
+    <!-- Hidden audio element -->
+    <audio bind:this={audioElement}></audio>
+
+    <!-- Track info -->
+    <div class="track-info">
+        {#if $currentTrack}
+            <div class="album-art">
+                {#if albumArt}
+                    <img src={albumArt} alt="Album art" />
+                {:else}
+                    <div class="album-art-placeholder">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            width="24"
+                            height="24"
+                        >
+                            <path
+                                d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"
+                            />
+                        </svg>
+                    </div>
+                {/if}
+            </div>
+            <div class="track-details">
+                <span class="track-title truncate"
+                    >{$currentTrack.title || "Unknown Title"}</span
+                >
+                <span class="track-artist truncate"
+                    >{$currentTrack.artist || "Unknown Artist"}</span
+                >
+            </div>
+        {:else}
+            <div class="no-track">
+                <span>No track playing</span>
+            </div>
+        {/if}
+    </div>
+
+    <!-- Playback controls -->
+    <div class="playback-controls">
+        <div class="controls-buttons">
+            <button
+                class="icon-btn"
+                class:active={$shuffle}
+                on:click={toggleShuffle}
+                title="Shuffle"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                >
+                    <path
+                        d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                    />
+                </svg>
+            </button>
+            <button class="icon-btn" on:click={previousTrack} title="Previous">
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="24"
+                    height="24"
+                >
+                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                </svg>
+            </button>
+            <button
+                class="play-btn"
+                on:click={togglePlay}
+                title={$isPlaying ? "Pause" : "Play"}
+            >
+                {#if $isPlaying}
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        width="24"
+                        height="24"
+                    >
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                    </svg>
+                {:else}
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        width="24"
+                        height="24"
+                    >
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                {/if}
+            </button>
+            <button class="icon-btn" on:click={nextTrack} title="Next">
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="24"
+                    height="24"
+                >
+                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                </svg>
+            </button>
+            <button
+                class="icon-btn"
+                class:active={$repeat !== "none"}
+                on:click={cycleRepeat}
+                title="Repeat: {$repeat}"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                >
+                    <path
+                        d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"
+                    />
+                </svg>
+                {#if $repeat === "one"}
+                    <span class="repeat-one">1</span>
+                {/if}
+            </button>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="progress-container">
+            <span class="time">{formatDuration($currentTime)}</span>
+            <div
+                class="progress-bar"
+                bind:this={seekBarElement}
+                on:mousedown={handleSeekStart}
+                role="slider"
+                aria-label="Seek"
+                aria-valuenow={Math.round($progress * 100)}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                tabindex="0"
+            >
+                <div class="progress-track">
+                    <div
+                        class="progress-fill"
+                        style="width: {$progress * 100}%"
+                    ></div>
+                </div>
+                <div
+                    class="progress-thumb"
+                    style="left: {$progress * 100}%"
+                ></div>
+            </div>
+            <span class="time">{formatDuration($duration)}</span>
+        </div>
+    </div>
+
+    <!-- Volume controls -->
+    <div class="volume-controls">
+        <button
+            class="icon-btn"
+            class:active={$lyricsVisible}
+            on:click={toggleLyrics}
+            title="Lyrics"
+        >
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <path
+                    d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6zm-2 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+                />
+            </svg>
+        </button>
+        <button
+            class="icon-btn"
+            on:click={() => setVolume($volume > 0 ? 0 : 1)}
+            title={$volume > 0 ? "Mute" : "Unmute"}
+        >
+            {#if $volume === 0}
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                >
+                    <path
+                        d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"
+                    />
+                </svg>
+            {:else if $volume < 0.5}
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                >
+                    <path
+                        d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"
+                    />
+                </svg>
+            {:else}
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    width="20"
+                    height="20"
+                >
+                    <path
+                        d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"
+                    />
+                </svg>
+            {/if}
+        </button>
+        <div
+            class="volume-bar"
+            bind:this={volumeBarElement}
+            on:click={handleVolumeChange}
+            role="slider"
+            aria-label="Volume"
+            aria-valuenow={Math.round($volume * 100)}
+            aria-valuemin="0"
+            aria-valuemax="100"
+            tabindex="0"
+        >
+            <div class="volume-track">
+                <div class="volume-fill" style="width: {$volume * 100}%"></div>
+            </div>
+            <div class="volume-thumb" style="left: {$volume * 100}%"></div>
+        </div>
+    </div>
+</footer>
+
+<style>
+    .player-bar {
+        height: var(--player-height);
+        background-color: var(--bg-elevated);
+        border-top: 1px solid var(--border-color);
+        display: grid;
+        grid-template-columns: 1fr 2fr 1fr;
+        align-items: center;
+        padding: 0 var(--spacing-md);
+        gap: var(--spacing-md);
+    }
+
+    /* Track info */
+    .track-info {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        min-width: 0;
+    }
+
+    .album-art {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        flex-shrink: 0;
+        background-color: var(--bg-surface);
+    }
+
+    .album-art img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .album-art-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-subdued);
+    }
+
+    .track-details {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .track-title {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .track-artist {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .track-artist:hover {
+        color: var(--text-primary);
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+    .no-track {
+        color: var(--text-subdued);
+        font-size: 0.875rem;
+    }
+
+    /* Playback controls */
+    .playback-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-xs);
+    }
+
+    .controls-buttons {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+
+    .play-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-full);
+        background-color: var(--text-primary);
+        color: var(--bg-base);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-fast);
+    }
+
+    .play-btn:hover {
+        transform: scale(1.06);
+    }
+
+    .repeat-one {
+        position: absolute;
+        font-size: 0.6rem;
+        font-weight: 700;
+        margin-top: 2px;
+    }
+
+    /* Progress bar */
+    .progress-container {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        width: 100%;
+        max-width: 600px;
+    }
+
+    .time {
+        font-size: 0.7rem;
+        color: var(--text-subdued);
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .progress-bar,
+    .volume-bar {
+        flex: 1;
+        height: 12px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .progress-track,
+    .volume-track {
+        width: 100%;
+        height: 4px;
+        background-color: var(--bg-highlight);
+        border-radius: var(--radius-full);
+        overflow: hidden;
+    }
+
+    .progress-fill,
+    .volume-fill {
+        height: 100%;
+        background-color: var(--text-secondary);
+        border-radius: var(--radius-full);
+        transition: background-color var(--transition-fast);
+    }
+
+    .progress-bar:hover .progress-fill,
+    .volume-bar:hover .volume-fill {
+        background-color: var(--accent-primary);
+    }
+
+    .progress-thumb,
+    .volume-thumb {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background-color: var(--text-primary);
+        border-radius: var(--radius-full);
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity var(--transition-fast);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .progress-bar:hover .progress-thumb,
+    .volume-bar:hover .volume-thumb {
+        opacity: 1;
+    }
+
+    /* Volume controls */
+    .volume-controls {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: var(--spacing-sm);
+    }
+
+    .volume-bar {
+        width: 100px;
+    }
+</style>

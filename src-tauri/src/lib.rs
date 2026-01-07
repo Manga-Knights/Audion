@@ -1,0 +1,57 @@
+// Rlist - Local Spotify-style Music Player
+// Main library entry point
+
+mod commands;
+mod db;
+mod scanner;
+
+use db::Database;
+use std::path::PathBuf;
+use tauri::Manager;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .setup(|app| {
+            // Get app data directory and create database
+            let app_dir = app
+                .path()
+                .app_data_dir()
+                .unwrap_or_else(|_| PathBuf::from("."));
+
+            // Ensure directory exists
+            std::fs::create_dir_all(&app_dir).ok();
+
+            // Initialize database
+            let database = Database::new(&app_dir).expect("Failed to initialize database");
+
+            app.manage(database);
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            // Library commands
+            commands::scan_music,
+            commands::get_library,
+            commands::get_tracks_by_album,
+            commands::get_tracks_by_artist,
+            commands::get_album,
+            commands::get_albums_by_artist,
+            // Playlist commands
+            commands::create_playlist,
+            commands::get_playlists,
+            commands::get_playlist_tracks,
+            commands::add_track_to_playlist,
+            commands::remove_track_from_playlist,
+            commands::delete_playlist,
+            commands::rename_playlist,
+            // Lyrics commands
+            commands::save_lrc_file,
+            commands::load_lrc_file,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
