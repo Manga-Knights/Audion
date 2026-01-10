@@ -27,10 +27,7 @@ pub struct Library {
 }
 
 #[tauri::command]
-pub async fn scan_music(
-    paths: Vec<String>,
-    db: State<'_, Database>,
-) -> Result<ScanResult, String> {
+pub async fn scan_music(paths: Vec<String>, db: State<'_, Database>) -> Result<ScanResult, String> {
     let mut tracks_added = 0;
     let mut errors = Vec::new();
 
@@ -161,26 +158,74 @@ pub async fn get_albums_by_artist(
     db: State<'_, Database>,
 ) -> Result<Vec<queries::Album>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
-    
-    let mut stmt = conn.prepare(
-        "SELECT DISTINCT a.id, a.name, a.artist, a.art_data 
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT DISTINCT a.id, a.name, a.artist, a.art_data 
          FROM albums a
          INNER JOIN tracks t ON t.album_id = a.id
          WHERE t.artist = ?1
-         ORDER BY a.name"
-    ).map_err(|e| e.to_string())?;
+         ORDER BY a.name",
+        )
+        .map_err(|e| e.to_string())?;
 
-    let albums = stmt.query_map([&artist], |row| {
-        Ok(queries::Album {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            artist: row.get(2)?,
-            art_data: row.get(3)?,
+    let albums = stmt
+        .query_map([&artist], |row| {
+            Ok(queries::Album {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                artist: row.get(2)?,
+                art_data: row.get(3)?,
+            })
         })
-    })
-    .map_err(|e| e.to_string())?
-    .collect::<Result<Vec<_>, _>>()
-    .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
 
     Ok(albums)
+}
+
+/// Input for adding an external (streaming) track to the library
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExternalTrackInput {
+    pub title: String,
+    pub artist: String,
+    pub album: Option<String>,
+    pub duration: Option<i32>,
+    pub cover_url: Option<String>,
+    pub source_type: String, // e.g., "tidal", "url"
+    pub external_id: String, // Source-specific ID (e.g., Tidal track ID)
+    pub format: Option<String>,
+    pub bitrate: Option<i32>,
+}
+
+/// Add an external (streaming) track to the library
+/// The path will be constructed as "{source_type}://{external_id}" for uniqueness
+#[tauri::command]
+pub async fn add_external_track(
+    track: ExternalTrackInput,
+    db: State<'_, Database>,
+) -> Result<i64, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    // Construct a unique path using source_type and external_id
+    let path = format!("{}://{}", track.source_type, track.external_id);
+
+    let track_insert = queries::TrackInsert {
+        path,
+        title: Some(track.title),
+        artist: Some(track.artist),
+        album: track.album,
+        track_number: None,
+        duration: track.duration,
+        album_art: None, // External tracks use cover_url instead
+        format: track.format,
+        bitrate: track.bitrate,
+        source_type: Some(track.source_type),
+        cover_url: track.cover_url,
+        external_id: Some(track.external_id),
+    };
+
+    queries::insert_or_update_track(&conn, &track_insert)
+        .map_err(|e| format!("Failed to add external track: {}", e))
 }

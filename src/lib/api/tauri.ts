@@ -50,6 +50,8 @@ export interface Track {
     format: string | null;
     bitrate: number | null;
     cover_url?: string | null;  // For streaming services (Tidal, etc.)
+    source_type?: string | null;  // 'local', 'tidal', 'url'
+    external_id?: string | null;  // Source-specific ID
 }
 
 export interface Album {
@@ -111,6 +113,22 @@ export async function getAlbum(albumId: number): Promise<Album | null> {
 
 export async function getAlbumsByArtist(artist: string): Promise<Album[]> {
     return await invoke('get_albums_by_artist', { artist });
+}
+
+export interface ExternalTrackInput {
+    title: string;
+    artist: string;
+    album?: string;
+    duration?: number;
+    cover_url?: string;
+    source_type: string;  // e.g., 'tidal', 'url'
+    external_id: string;  // Source-specific ID
+    format?: string;
+    bitrate?: number;
+}
+
+export async function addExternalTrack(track: ExternalTrackInput): Promise<number> {
+    return await invoke('add_external_track', { track });
 }
 
 // Playlist commands

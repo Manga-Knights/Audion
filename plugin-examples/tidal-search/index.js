@@ -37,7 +37,7 @@
             this.loadDownloadPath();
             // Try to restore any persisted directory handle (non-blocking)
             if (typeof indexedDB !== 'undefined') {
-                this.restoreDirectoryHandle().catch(() => {});
+                this.restoreDirectoryHandle().catch(() => { });
             }
 
             // Inject styles
@@ -63,7 +63,7 @@
                     console.log('[TidalSearch] Loaded download path from API:', this.downloadPath);
                     return;
                 }
-                
+
                 // Fallback to localStorage
                 const stored = localStorage.getItem('audion_settings');
                 if (stored) {
@@ -74,7 +74,7 @@
                         return;
                     }
                 }
-                
+
                 // No saved path found
                 this.downloadPath = null;
                 console.log('[TidalSearch] No saved download path, will use browser downloads');
@@ -1481,270 +1481,120 @@
         // Complete saveTrack method - replace in your TidalSearch plugin
 
         async saveTrack(track, button) {
-            console.log('[TidalSearch] Saving track:', track.title);
+            console.log('[TidalSearch] Adding track to library:', track.title);
 
             // Show saving state
             button.classList.add('saving');
 
             try {
-                // Get quality selection
+                // Get quality selection for format info
                 const quality = document.getElementById('tidal-quality')?.value || 'LOSSLESS';
 
-                // Show download progress UI
-                const progressBar = document.getElementById('tidal-download-progress');
-                const progressText = progressBar?.querySelector('.tidal-download-progress-text');
-                const bar = progressBar?.querySelector('.tidal-download-progress-bar');
-                if (progressBar) {
-                    progressBar.classList.remove('hidden');
-                    if (progressText) progressText.textContent = `Preparing download: ${track.title}`;
-                    if (bar) bar.innerHTML = `<div class='tidal-download-progress-bar-inner' style='width:0%'></div>`;
-                }
-
-                // Fetch stream URL
-                let streamData = await this.fetchStream(track.id, quality);
-
-                // Handle MPD fallback
-                if (streamData?.data?.manifestMimeType === 'application/dash+xml') {
-                    streamData = await this.fetchStream(track.id, 'LOSSLESS');
-                    if (streamData?.data?.manifestMimeType === 'application/dash+xml') {
-                        streamData = await this.fetchStream(track.id, 'HIGH');
-                    }
-                }
-
-                const streamUrl = this.decodeManifest(streamData.data);
-                if (!streamUrl) {
-                    throw new Error('Could not get stream URL');
-                }
-
-                // Create filename
+                // Get track metadata
                 const artistName = track.artist?.name || track.artists?.[0]?.name || 'Unknown Artist';
                 const title = track.title + (track.version ? ` (${track.version})` : '');
-                const safeTitle = title.replace(/[<>:"/\\|?*]/g, '_');
-                const safeArtist = artistName.replace(/[<>:"/\\|?*]/g, '_');
-
-                // Determine extension based on quality
-                const extension = (streamData?.data?.audioQuality === 'HIGH' || streamData?.data?.audioQuality === 'LOW')
-                    ? 'aac'
-                    : 'flac';
-                const filename = `${safeArtist} - ${safeTitle}.${extension}`;
-
-                let savedPath = '';
-
-                // PRE-DOWNLOAD: ensure we have permission to write to the selected folder
-                // and avoid attempting to write into a Downloads-like folder without explicit consent.
-                let forceBrowserDownload = false;
-                if (!this.api?.library?.downloadTrack) {
-                    // Only consider FS checks for browser fallback
-                    if (this.directoryHandle) {
-                        try {
-                            if (typeof this.directoryHandle.queryPermission === 'function') {
-                                let perm = await this.directoryHandle.queryPermission({ mode: 'readwrite' });
-                                if (perm === 'prompt') {
-                                    try {
-                                        // This save action is a user gesture; request permission now
-                                        perm = await this.directoryHandle.requestPermission({ mode: 'readwrite' });
-                                        console.log('[TidalSearch] requestPermission result during save:', perm);
-                                    } catch (reqErr) {
-                                        console.warn('[TidalSearch] requestPermission failed during save:', reqErr);
-                                    }
-                                }
-
-                                if (perm !== 'granted') {
-                                    const pick = confirm('No write permission for the selected folder. Click OK to choose a different folder now, or Cancel to use browser downloads.');
-                                    if (pick) {
-                                        await this.browseForFolder();
-                                        if (!this.directoryHandle) {
-                                            forceBrowserDownload = true;
-                                        } else {
-                                            const newPerm = typeof this.directoryHandle.queryPermission === 'function'
-                                                ? await this.directoryHandle.queryPermission({ mode: 'readwrite' })
-                                                : 'granted';
-                                            if (newPerm !== 'granted') {
-                                                this.showToast('Folder selected but write permission not granted. Using browser downloads.');
-                                                forceBrowserDownload = true;
-                                            }
-                                        }
-                                    } else {
-                                        forceBrowserDownload = true;
-                                    }
-                                }
-                            }
-                        } catch (err) {
-                            console.warn('[TidalSearch] Pre-check of directory handle failed:', err);
-                        }
-
-                        // If still using handle, check for 'Downloads' name and confirm with user
-                        if (!forceBrowserDownload && this.directoryHandle && (this.directoryHandle.name || '').toLowerCase().includes('download')) {
-                            const ok = confirm('The selected folder appears to be your Downloads folder. Save directly to Downloads? Click Cancel to pick another folder.');
-                            if (!ok) {
-                                await this.browseForFolder();
-                                if (!this.directoryHandle) forceBrowserDownload = true;
-                            }
-                        }
-                    } else {
-                        // No directory handle: ask user to pick or fallback to browser download
-                        const pick = confirm('No save folder selected. Click OK to pick a folder for direct saving, or Cancel to use browser downloads.');
-                        if (pick) {
-                            await this.browseForFolder();
-                            if (!this.directoryHandle) forceBrowserDownload = true;
-                        } else {
-                            forceBrowserDownload = true;
-                        }
-                    }
-                }
+                const coverUrl = track.album?.cover
+                    ? `https://resources.tidal.com/images/${track.album.cover.replace(/-/g, '/')}/640x640.jpg`
+                    : null;
 
                 // Check if API is available
-                if (this.api?.library?.downloadTrack) {
-                    if (progressText) progressText.textContent = `Saving: ${title}`;
-                    
-                    // Get cover URL
-                    const coverUrl = track.album?.cover
-                        ? `https://resources.tidal.com/images/${track.album.cover.replace(/-/g, '/')}/640x640.jpg`
-                        : null;
-                    
-                    // Prepare metadata
-                    const metadata = {
+                if (this.api?.library?.addExternalTrack) {
+                    console.log('[TidalSearch] Using addExternalTrack API');
+
+                    // Add track to database (no download needed)
+                    const trackData = {
                         title: title,
                         artist: artistName,
                         album: track.album?.title || null,
-                        trackNumber: track.trackNumber || null,
-                        coverUrl: coverUrl  // Changed from albumArt to coverUrl to match backend
+                        duration: track.duration || null,
+                        cover_url: coverUrl,
+                        source_type: 'tidal',
+                        external_id: String(track.id),
+                        format: quality,
+                        bitrate: null
                     };
 
-                    // CRITICAL FIX: Use path as directory only, not full path
-                    // The backend constructs fullPath = `${path}/${filename}`
-                    const downloadOptions = {
-                        url: streamUrl,
-                        filename: filename,
-                        metadata: metadata
-                    };
+                    await this.api.library.addExternalTrack(trackData);
 
-                    // Add DIRECTORY PATH only (not including filename)
-                    if (this.downloadPath) {
-                        // Remove trailing slashes to be safe
-                        const cleanPath = this.downloadPath.replace(/[\/\\]+$/, '');
-                        downloadOptions.path = cleanPath;  // Use 'path' not 'downloadPath'
-                        console.log('[TidalSearch] Using custom download directory:', cleanPath);
-                        console.log('[TidalSearch] Full filename will be:', filename);
-                    } else {
-                        console.log('[TidalSearch] Using default download location');
-                    }
+                    // Mark as saved
+                    button.classList.remove('saving');
+                    button.classList.add('saved');
 
-                    console.log('[TidalSearch] Calling api.library.downloadTrack with:', {
-                        url: streamUrl.substring(0, 50) + '...',
-                        path: downloadOptions.path || '(default)',
-                        filename: filename
-                    });
+                    this.showToast(`✓ Added to library: ${title}`);
+                    console.log('[TidalSearch] Track added to library:', trackData);
 
-                    savedPath = await this.api.library.downloadTrack(downloadOptions);
-                    console.log('[TidalSearch] API returned saved path:', savedPath);
-                    
-                    if (progressText) progressText.textContent = `Saved: ${savedPath}`;
-                    
                 } else {
-                    // Fallback: Browser download with File System Access API if available
-                    console.log('[TidalSearch] API not available, using browser download');
-                    
-                    if (progressText) progressText.textContent = `Downloading: ${title}`;
-                    const audioResponse = await fetch(streamUrl);
-                    if (!audioResponse.ok) {
-                        throw new Error('Failed to download audio');
+                    // Fallback: use old download method if addExternalTrack not available
+                    console.log('[TidalSearch] addExternalTrack not available, falling back to download');
+
+                    // Get quality selection
+                    const progressBar = document.getElementById('tidal-download-progress');
+                    const progressText = progressBar?.querySelector('.tidal-download-progress-text');
+
+                    if (progressBar) {
+                        progressBar.classList.remove('hidden');
+                        if (progressText) progressText.textContent = `Preparing download: ${title}`;
                     }
-                    
-                    // Show progress
-                    const reader = audioResponse.body.getReader();
-                    const contentLength = +audioResponse.headers.get('Content-Length') || 0;
-                    let receivedLength = 0;
-                    let chunks = [];
-                    
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        chunks.push(value);
-                        receivedLength += value.length;
-                        
-                        if (bar && contentLength) {
-                            const percent = Math.round((receivedLength / contentLength) * 100);
-                            const inner = bar.querySelector('.tidal-download-progress-bar-inner');
-                            if (inner) inner.style.width = percent + '%';
-                        }
-                        
-                        if (progressText) {
-                            progressText.textContent = `Downloading: ${title} (${Math.round(receivedLength / 1024)} KB)`;
+
+                    // Fetch stream URL
+                    let streamData = await this.fetchStream(track.id, quality);
+
+                    // Handle MPD fallback
+                    if (streamData?.data?.manifestMimeType === 'application/dash+xml') {
+                        streamData = await this.fetchStream(track.id, 'LOSSLESS');
+                        if (streamData?.data?.manifestMimeType === 'application/dash+xml') {
+                            streamData = await this.fetchStream(track.id, 'HIGH');
                         }
                     }
-                    
-                    const blob = new Blob(chunks);
 
-                    // Try to use directory handle if we have one and permission checks passed
-                    let fsSaved = false;
-                    if (this.directoryHandle && !forceBrowserDownload) {
-                        try {
-                            // Check permission. If permission is 'prompt' we MAY request it here
-                            // because this code runs from a user click (save button), which
-                            // satisfies the user activation requirement in supporting browsers.
-                            if (typeof this.directoryHandle.queryPermission === 'function') {
-                                let perm = await this.directoryHandle.queryPermission({ mode: 'readwrite' });
-                                if (perm === 'prompt') {
-                                    try {
-                                        perm = await this.directoryHandle.requestPermission({ mode: 'readwrite' });
-                                        console.log('[TidalSearch] Requested write permission result:', perm);
-                                    } catch (reqErr) {
-                                        console.warn('[TidalSearch] requestPermission failed:', reqErr);
-                                    }
-                                }
+                    const streamUrl = this.decodeManifest(streamData.data);
+                    if (!streamUrl) {
+                        throw new Error('Could not get stream URL');
+                    }
 
-                                if (perm !== 'granted') {
-                                    console.warn('[TidalSearch] Directory handle does not have write permission:', perm);
-                                    throw new Error('No write permission');
-                                }
+                    // Create filename
+                    const safeTitle = title.replace(/[<>:"/\\|?*]/g, '_');
+                    const safeArtist = artistName.replace(/[<>:"/\\|?*]/g, '_');
+                    const extension = (streamData?.data?.audioQuality === 'HIGH' || streamData?.data?.audioQuality === 'LOW')
+                        ? 'aac' : 'flac';
+                    const filename = `${safeArtist} - ${safeTitle}.${extension}`;
+
+                    if (this.api?.library?.downloadTrack) {
+                        const downloadOptions = {
+                            url: streamUrl,
+                            filename: filename,
+                            metadata: {
+                                title: title,
+                                artist: artistName,
+                                album: track.album?.title || null,
+                                trackNumber: track.trackNumber || null,
+                                coverUrl: coverUrl
                             }
+                        };
 
-                            const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
-                            const writable = await fileHandle.createWritable();
-                            await writable.write(blob);
-                            await writable.close();
-                            savedPath = `${this.directoryHandle.name}/${filename}`;
-                            fsSaved = true;
-                            if (progressText) progressText.textContent = `Saved: ${savedPath}`;
-                        } catch (fsErr) {
-                            console.warn('[TidalSearch] File System Access failed:', fsErr);
-                            this.showToast('Permission denied — reselect folder in Settings (Browse).');
-                            fsSaved = false;
+                        if (this.downloadPath) {
+                            downloadOptions.path = this.downloadPath.replace(/[\/\\]+$/, '');
                         }
-                    }
 
-                    if (!fsSaved) {
-                        this.downloadViaBrowser(blob, filename);
-                        savedPath = `Downloads/${filename}`;
+                        const savedPath = await this.api.library.downloadTrack(downloadOptions);
+
                         if (progressText) progressText.textContent = `Saved: ${savedPath}`;
+                        setTimeout(() => {
+                            if (progressBar) progressBar.classList.add('hidden');
+                        }, 2500);
+
+                        button.classList.remove('saving');
+                        button.classList.add('saved');
+                        this.showToast(`✓ Downloaded: ${title}`);
+                    } else {
+                        throw new Error('No library API available');
                     }
                 }
-
-                // Hide progress bar after delay
-                setTimeout(() => {
-                    if (progressBar) progressBar.classList.add('hidden');
-                }, 2500);
-
-                // Mark as saved
-                button.classList.remove('saving');
-                button.classList.add('saved');
-                console.log(`[TidalSearch] Final saved path: ${savedPath}`);
 
             } catch (err) {
                 console.error('[TidalSearch] Save error:', err);
                 button.classList.remove('saving');
-                
-                // Show error
-                const progressBar = document.getElementById('tidal-download-progress');
-                const progressText = progressBar?.querySelector('.tidal-download-progress-text');
-                if (progressBar) {
-                    progressBar.classList.remove('hidden');
-                    if (progressText) progressText.textContent = `Error: ${err.message}`;
-                    setTimeout(() => {
-                        progressBar.classList.add('hidden');
-                    }, 3000);
-                }
+                this.showToast(`Error: ${err.message}`, true);
             }
         },
 

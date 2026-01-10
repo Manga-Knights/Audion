@@ -367,9 +367,12 @@ export class PluginRuntime {
 
         // Determine target directory: prefer plugin-provided path, fallback to global app setting
         const globalDownloadLocation = get(appSettings).downloadLocation;
-        const requestedPath = options.downloadPath && typeof options.downloadPath === 'string' && options.downloadPath.trim() !== ''
-          ? options.downloadPath
-          : null;
+        // Accept both 'path' and 'downloadPath' properties from plugins
+        const requestedPath = (options.path && typeof options.path === 'string' && options.path.trim() !== '')
+          ? options.path
+          : (options.downloadPath && typeof options.downloadPath === 'string' && options.downloadPath.trim() !== '')
+            ? options.downloadPath
+            : null;
         const targetDir = requestedPath || globalDownloadLocation;
 
         if (!targetDir) {
@@ -398,6 +401,29 @@ export class PluginRuntime {
             console.warn('[PluginRuntime] Auto-rescan failed', e);
           }
           return savedPath;
+        });
+
+      case 'library.addExternalTrack':
+        // args: [trackData: { title, artist, album?, duration?, cover_url?, source_type, external_id, format?, bitrate? }]
+        const trackData = args[0];
+        if (!trackData || !trackData.title || !trackData.artist || !trackData.source_type || !trackData.external_id) {
+          console.warn(`[PluginRuntime] Invalid external track data`);
+          return null;
+        }
+
+        // Call Rust command to add external track
+        return invoke('add_external_track', {
+          track: {
+            title: trackData.title,
+            artist: trackData.artist,
+            album: trackData.album || null,
+            duration: trackData.duration || null,
+            cover_url: trackData.cover_url || null,
+            source_type: trackData.source_type,
+            external_id: trackData.external_id,
+            format: trackData.format || null,
+            bitrate: trackData.bitrate || null
+          }
         });
 
       case 'settings.setDownloadLocation':
@@ -510,6 +536,7 @@ export class PluginRuntime {
     if (this.hasPermission(pluginName, 'library:write')) {
       if (!api.library) api.library = {};
       api.library.downloadTrack = (options: any) => this.callHost(pluginName, 'library.downloadTrack', options);
+      api.library.addExternalTrack = (trackData: any) => this.callHost(pluginName, 'library.addExternalTrack', trackData);
     }
 
     if (this.hasPermission(pluginName, 'ui:inject')) {

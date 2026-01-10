@@ -118,27 +118,44 @@ pub fn list_plugins(plugin_dir: String) -> Vec<PluginInfo> {
 pub fn enable_plugin(name: String, plugin_dir: String) -> Result<bool, String> {
     let mut states = load_plugin_states(&plugin_dir);
 
+    // Use safe folder name (matching install logic)
+    let safe_name = name.replace(" ", "-").to_lowercase();
+    let plugin_path = PathBuf::from(&plugin_dir).join(&safe_name);
+
+    // Read manifest to get requested permissions
+    let manifest = read_plugin_manifest(&plugin_path);
+
     if let Some(state) = states.plugins.get_mut(&name) {
         state.enabled = true;
+
+        // Auto-grant manifest permissions if not already granted
+        if let Some(ref m) = manifest {
+            for perm in &m.permissions {
+                if !state.granted_permissions.contains(perm) {
+                    state.granted_permissions.push(perm.clone());
+                }
+            }
+        }
+
         save_plugin_states(&plugin_dir, &states)?;
         Ok(true)
     } else {
         // Plugin not in state yet, need to add it
-        // Use safe folder name (matching install logic)
-        let safe_name = name.replace(" ", "-").to_lowercase();
-        let plugin_path = PathBuf::from(&plugin_dir).join(&safe_name);
-        if let Some(manifest) = read_plugin_manifest(&plugin_path) {
+        if let Some(manifest) = manifest {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_secs();
+
+            // Auto-grant all manifest permissions on first enable
+            let granted_permissions = manifest.permissions.clone();
 
             states.plugins.insert(
                 name.clone(),
                 PluginState {
                     name: name.clone(),
                     enabled: true,
-                    granted_permissions: vec![],
+                    granted_permissions,
                     version: manifest.version,
                     plugin_type: manifest.plugin_type,
                     installed_at: now,

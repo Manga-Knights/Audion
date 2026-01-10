@@ -20,19 +20,30 @@ pub struct DownloadAudioInput {
 pub async fn download_and_save_audio(input: DownloadAudioInput) -> Result<String, String> {
     let path = Path::new(&input.path);
 
+    // Debug: Log input values
+    println!("[Metadata] Saving to path: {}", &input.path);
+    println!(
+        "[Metadata] Title: {:?}, Artist: {:?}, Album: {:?}",
+        &input.title, &input.artist, &input.album
+    );
+    println!("[Metadata] Cover URL: {:?}", &input.cover_url);
+
     // Ensure parent directory exists
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
     }
 
     // Download the audio file from URL
+    println!("[Metadata] Downloading audio from URL...");
     let audio_data = download_file(&input.url).await?;
+    println!("[Metadata] Downloaded {} bytes", audio_data.len());
 
     // Write to file
     let mut file = fs::File::create(path).map_err(|e| format!("Failed to create file: {}", e))?;
     file.write_all(&audio_data)
         .map_err(|e| format!("Failed to write file: {}", e))?;
     drop(file);
+    println!("[Metadata] Audio file written to disk");
 
     // Try to write metadata (non-fatal if it fails)
     // AAC files with ID3 tags often fail to play in browsers, so we skip metadata for them
@@ -40,9 +51,12 @@ pub async fn download_and_save_audio(input: DownloadAudioInput) -> Result<String
         .extension()
         .map_or(false, |ext| ext.eq_ignore_ascii_case("aac"));
     if !is_aac {
-        if let Err(e) = write_metadata_to_file(path, &input).await {
-            eprintln!("Warning: Could not write metadata: {}", e);
+        match write_metadata_to_file(path, &input).await {
+            Ok(()) => println!("[Metadata] Successfully wrote metadata to file"),
+            Err(e) => eprintln!("[Metadata] Warning: Could not write metadata: {}", e),
         }
+    } else {
+        println!("[Metadata] Skipping metadata for AAC file");
     }
 
     Ok(input.path)

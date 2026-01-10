@@ -80,8 +80,14 @@ function createPluginStore() {
                 for (const plugin of installed) {
                     if (plugin.enabled) {
                         try {
-                            // Grant permissions before loading
-                            runtime.grantPermissions(plugin.name, plugin.granted_permissions);
+                            // Grant permissions before loading - use backend's granted_permissions
+                            // Also grant manifest permissions as fallback (ensures new permissions are available)
+                            const allPermissions = [
+                                ...plugin.granted_permissions,
+                                ...(plugin.manifest.permissions || [])
+                            ];
+                            const uniquePermissions = [...new Set(allPermissions)];
+                            runtime.grantPermissions(plugin.name, uniquePermissions);
                             await runtime.loadPlugin(plugin.manifest);
                             runtime.enablePlugin(plugin.name);
                         } catch (err) {
@@ -202,8 +208,13 @@ function createPluginStore() {
                 const plugin = state.installed.find(p => p.name === name);
 
                 if (plugin && runtime) {
-                    // Grant permissions and load
-                    runtime.grantPermissions(name, plugin.granted_permissions);
+                    // Grant permissions and load - include manifest permissions as fallback
+                    const allPermissions = [
+                        ...plugin.granted_permissions,
+                        ...(plugin.manifest.permissions || [])
+                    ];
+                    const uniquePermissions = [...new Set(allPermissions)];
+                    runtime.grantPermissions(name, uniquePermissions);
 
                     // Check if already loaded in runtime
                     if (!runtime.getPlugin(name)) {

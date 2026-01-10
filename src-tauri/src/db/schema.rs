@@ -24,6 +24,9 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             album_id INTEGER,
             format TEXT,
             bitrate INTEGER,
+            source_type TEXT DEFAULT 'local',
+            cover_url TEXT,
+            external_id TEXT,
             FOREIGN KEY (album_id) REFERENCES albums(id)
         );
 
@@ -61,6 +64,12 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
     // Migrations for existing databases
     let _ = conn.execute("ALTER TABLE tracks ADD COLUMN format TEXT", []);
     let _ = conn.execute("ALTER TABLE tracks ADD COLUMN bitrate INTEGER", []);
+    let _ = conn.execute(
+        "ALTER TABLE tracks ADD COLUMN source_type TEXT DEFAULT 'local'",
+        [],
+    );
+    let _ = conn.execute("ALTER TABLE tracks ADD COLUMN cover_url TEXT", []);
+    let _ = conn.execute("ALTER TABLE tracks ADD COLUMN external_id TEXT", []);
 
     Ok(())
 }

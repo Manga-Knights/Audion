@@ -125,7 +125,24 @@ export async function playTrack(track: Track): Promise<void> {
 
     if (audioElement) {
         try {
-            const src = await getAudioSrc(track.path);
+            let src: string;
+
+            // Check if this is an external streaming track
+            if (track.source_type && track.source_type !== 'local') {
+                // For external tracks (tidal, url, etc.), the path is already a URL
+                // or we need to fetch a fresh stream URL if it's a source-specific ID
+                if (track.path.startsWith('http://') || track.path.startsWith('https://')) {
+                    src = track.path;
+                } else {
+                    // Path is like "tidal://12345" - we'll need to resolve it
+                    // For now, just use the path directly (plugin will set the actual URL)
+                    src = track.path;
+                }
+            } else {
+                // Local file - convert file path to asset URL
+                src = await getAudioSrc(track.path);
+            }
+
             audioElement.src = src;
             await audioElement.play();
         } catch (error) {

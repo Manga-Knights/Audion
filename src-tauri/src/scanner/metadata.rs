@@ -53,6 +53,9 @@ pub fn extract_metadata(path: &str) -> Option<TrackInsert> {
                 album_art,
                 format,
                 bitrate,
+                source_type: None, // Local file
+                cover_url: None,
+                external_id: None,
             })
         }
         None => {
@@ -77,6 +80,9 @@ fn create_fallback_metadata(path: &Path) -> TrackInsert {
         album_art: None,
         format: None,
         bitrate: None,
+        source_type: None, // Local file
+        cover_url: None,
+        external_id: None,
     }
 }
 

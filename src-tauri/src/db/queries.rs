@@ -14,6 +14,9 @@ pub struct Track {
     pub album_id: Option<i64>,
     pub format: Option<String>,
     pub bitrate: Option<i32>,
+    pub source_type: Option<String>,
+    pub cover_url: Option<String>,
+    pub external_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,6 +52,9 @@ pub struct TrackInsert {
     pub album_art: Option<String>,
     pub format: Option<String>,
     pub bitrate: Option<i32>,
+    pub source_type: Option<String>,
+    pub cover_url: Option<String>,
+    pub external_id: Option<String>,
 }
 
 // Track operations
@@ -67,8 +73,8 @@ pub fn insert_or_update_track(conn: &Connection, track: &TrackInsert) -> Result<
     };
 
     conn.execute(
-        "INSERT INTO tracks (path, title, artist, album, track_number, duration, album_id, format, bitrate)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+        "INSERT INTO tracks (path, title, artist, album, track_number, duration, album_id, format, bitrate, source_type, cover_url, external_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
          ON CONFLICT(path) DO UPDATE SET
             title = excluded.title,
             artist = excluded.artist,
@@ -77,7 +83,10 @@ pub fn insert_or_update_track(conn: &Connection, track: &TrackInsert) -> Result<
             duration = excluded.duration,
             album_id = excluded.album_id,
             format = excluded.format,
-            bitrate = excluded.bitrate",
+            bitrate = excluded.bitrate,
+            source_type = excluded.source_type,
+            cover_url = excluded.cover_url,
+            external_id = excluded.external_id",
         params![
             track.path,
             track.title,
@@ -88,6 +97,9 @@ pub fn insert_or_update_track(conn: &Connection, track: &TrackInsert) -> Result<
             album_id,
             track.format,
             track.bitrate,
+            track.source_type,
+            track.cover_url,
+            track.external_id,
         ],
     )?;
 
@@ -129,7 +141,7 @@ fn get_or_create_album(
 
 pub fn get_all_tracks(conn: &Connection) -> Result<Vec<Track>> {
     let mut stmt = conn.prepare(
-        "SELECT id, path, title, artist, album, track_number, duration, album_id, format, bitrate 
+        "SELECT id, path, title, artist, album, track_number, duration, album_id, format, bitrate, source_type, cover_url, external_id 
          FROM tracks ORDER BY artist, album, track_number, title",
     )?;
 
@@ -146,6 +158,9 @@ pub fn get_all_tracks(conn: &Connection) -> Result<Vec<Track>> {
                 album_id: row.get(7)?,
                 format: row.get(8)?,
                 bitrate: row.get(9)?,
+                source_type: row.get(10)?,
+                cover_url: row.get(11)?,
+                external_id: row.get(12)?,
             })
         })?
         .collect::<Result<Vec<_>>>()?;
@@ -195,7 +210,7 @@ pub fn get_all_artists(conn: &Connection) -> Result<Vec<Artist>> {
 
 pub fn get_tracks_by_album(conn: &Connection, album_id: i64) -> Result<Vec<Track>> {
     let mut stmt = conn.prepare(
-        "SELECT id, path, title, artist, album, track_number, duration, album_id, format, bitrate 
+        "SELECT id, path, title, artist, album, track_number, duration, album_id, format, bitrate, source_type, cover_url, external_id 
          FROM tracks WHERE album_id = ?1 ORDER BY track_number, title",
     )?;
 
@@ -212,6 +227,9 @@ pub fn get_tracks_by_album(conn: &Connection, album_id: i64) -> Result<Vec<Track
                 album_id: row.get(7)?,
                 format: row.get(8)?,
                 bitrate: row.get(9)?,
+                source_type: row.get(10)?,
+                cover_url: row.get(11)?,
+                external_id: row.get(12)?,
             })
         })?
         .collect::<Result<Vec<_>>>()?;
@@ -221,7 +239,7 @@ pub fn get_tracks_by_album(conn: &Connection, album_id: i64) -> Result<Vec<Track
 
 pub fn get_tracks_by_artist(conn: &Connection, artist: &str) -> Result<Vec<Track>> {
     let mut stmt = conn.prepare(
-        "SELECT id, path, title, artist, album, track_number, duration, album_id, format, bitrate 
+        "SELECT id, path, title, artist, album, track_number, duration, album_id, format, bitrate, source_type, cover_url, external_id 
          FROM tracks WHERE artist = ?1 ORDER BY album, track_number, title",
     )?;
 
@@ -238,6 +256,9 @@ pub fn get_tracks_by_artist(conn: &Connection, artist: &str) -> Result<Vec<Track
                 album_id: row.get(7)?,
                 format: row.get(8)?,
                 bitrate: row.get(9)?,
+                source_type: row.get(10)?,
+                cover_url: row.get(11)?,
+                external_id: row.get(12)?,
             })
         })?
         .collect::<Result<Vec<_>>>()?;
@@ -285,7 +306,7 @@ pub fn get_all_playlists(conn: &Connection) -> Result<Vec<Playlist>> {
 
 pub fn get_playlist_tracks(conn: &Connection, playlist_id: i64) -> Result<Vec<Track>> {
     let mut stmt = conn.prepare(
-        "SELECT t.id, t.path, t.title, t.artist, t.album, t.track_number, t.duration, t.album_id, t.format, t.bitrate 
+        "SELECT t.id, t.path, t.title, t.artist, t.album, t.track_number, t.duration, t.album_id, t.format, t.bitrate, t.source_type, t.cover_url, t.external_id 
          FROM tracks t
          INNER JOIN playlist_tracks pt ON t.id = pt.track_id
          WHERE pt.playlist_id = ?1
@@ -305,6 +326,9 @@ pub fn get_playlist_tracks(conn: &Connection, playlist_id: i64) -> Result<Vec<Tr
                 album_id: row.get(7)?,
                 format: row.get(8)?,
                 bitrate: row.get(9)?,
+                source_type: row.get(10)?,
+                cover_url: row.get(11)?,
+                external_id: row.get(12)?,
             })
         })?
         .collect::<Result<Vec<_>>>()?;
@@ -390,23 +414,28 @@ pub fn cleanup_deleted_tracks(conn: &Connection, folder_paths: &[String]) -> Res
     if folder_paths.is_empty() {
         return Ok(0);
     }
-    
+
     // Build query with OR conditions for each folder
-    let conditions: Vec<String> = folder_paths.iter().enumerate()
+    let conditions: Vec<String> = folder_paths
+        .iter()
+        .enumerate()
         .map(|(i, _)| format!("path LIKE ?{}", i + 1))
         .collect();
-    let query = format!("SELECT id, path FROM tracks WHERE {}", conditions.join(" OR "));
-    
+    let query = format!(
+        "SELECT id, path FROM tracks WHERE {}",
+        conditions.join(" OR ")
+    );
+
     let mut params = Vec::new();
     for folder in folder_paths {
         params.push(format!("{}%", folder));
     }
-    
+
     let mut stmt = conn.prepare(&query)?;
     let track_rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
         Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
     })?;
-    
+
     let mut deleted_count = 0;
     for track_result in track_rows {
         let (id, path) = track_result?;
@@ -416,6 +445,6 @@ pub fn cleanup_deleted_tracks(conn: &Connection, folder_paths: &[String]) -> Res
             deleted_count += 1;
         }
     }
-    
+
     Ok(deleted_count)
 }
