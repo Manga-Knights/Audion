@@ -18,7 +18,7 @@ import {
   reorderQueue,
   clearUpcoming
 } from '$lib/stores/player';
-import { tracks, playlists, loadLibrary } from '$lib/stores/library';
+import { tracks, playlists, loadLibrary, refreshAll } from '$lib/stores/library';
 import { PluginStorage } from './plugin-storage';
 import { RateLimiter, RATE_LIMITS } from './rate-limiter';
 import type { EventListener } from './event-emitter';
@@ -413,7 +413,7 @@ export class PluginRuntime {
         });
 
       case 'library.refresh':
-        return loadLibrary();
+        return refreshAll();
 
       case 'library.getTracks':
         return get(tracks);
@@ -444,6 +444,15 @@ export class PluginRuntime {
             stream_url: trackData.stream_url || null  // The decoded stream URL
           }
         });
+
+      case 'library.createPlaylist':
+        // args: [name]
+        return invoke('create_playlist', { name: args[0] });
+
+      case 'library.addTrackToPlaylist':
+        // args: [playlistId, trackId]
+        if (typeof args[0] !== 'number' || typeof args[1] !== 'number') return false;
+        return invoke('add_track_to_playlist', { playlistId: args[0], trackId: args[1] });
 
       case 'settings.setDownloadLocation':
         // args: [path]
@@ -557,6 +566,8 @@ export class PluginRuntime {
       api.library.downloadTrack = (options: any) => this.callHost(pluginName, 'library.downloadTrack', options);
       api.library.addExternalTrack = (trackData: any) => this.callHost(pluginName, 'library.addExternalTrack', trackData);
       api.library.refresh = () => this.callHost(pluginName, 'library.refresh');
+      api.library.createPlaylist = (name: string) => this.callHost(pluginName, 'library.createPlaylist', name);
+      api.library.addTrackToPlaylist = (playlistId: number, trackId: number) => this.callHost(pluginName, 'library.addTrackToPlaylist', playlistId, trackId);
     }
 
     if (this.hasPermission(pluginName, 'library:read')) {
