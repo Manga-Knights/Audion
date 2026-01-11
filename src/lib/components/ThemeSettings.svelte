@@ -284,7 +284,7 @@
                     </svg>
                     <span>Audion</span>
                 </div>
-                <p class="version">Version 1.0.0</p>
+                <p class="version">Version 1.1.0</p>
                 <p class="copyright">
                     A modern music player built with Tauri & Svelte
                 </p>
@@ -475,66 +475,6 @@
 
     .add-btn:hover {
         background-color: var(--accent-hover);
-    }
-
-    /* Path Input */
-    .path-input-container {
-        display: flex;
-        gap: var(--spacing-sm);
-        align-items: center;
-    }
-
-    .path-input {
-        flex: 1;
-        padding: var(--spacing-sm) var(--spacing-md);
-        background-color: var(--bg-surface);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-sm);
-        color: var(--text-primary);
-        font-size: 0.875rem;
-    }
-
-    .path-input:focus {
-        outline: none;
-        border-color: var(--accent-primary);
-    }
-
-    .path-input::placeholder {
-        color: var(--text-subdued);
-    }
-
-    .browse-btn {
-        padding: var(--spacing-sm) var(--spacing-md);
-        background-color: var(--bg-surface);
-        color: var(--text-primary);
-        font-weight: 500;
-        font-size: 0.875rem;
-        border-radius: var(--radius-sm);
-        transition: all var(--transition-fast);
-        white-space: nowrap;
-        border: 1px solid var(--border-color);
-    }
-
-    .browse-btn:hover {
-        background-color: var(--bg-highlight);
-        border-color: var(--text-primary);
-    }
-
-    .clear-btn {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: transparent;
-        color: var(--text-subdued);
-        border-radius: var(--radius-sm);
-        transition: all var(--transition-fast);
-    }
-
-    .clear-btn:hover {
-        color: var(--text-primary);
-        background-color: rgba(255, 255, 255, 0.1);
     }
 
     .setting-hint {
