@@ -419,7 +419,9 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
     padding: var(--spacing-md);
+    overflow: hidden;
   }
 
   .view-header {
@@ -427,6 +429,7 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: var(--spacing-lg);
+    flex-shrink: 0;
   }
 
   .view-header h1 {
@@ -444,6 +447,7 @@
     border-radius: var(--radius-md);
     color: #ef4444;
     margin-bottom: var(--spacing-md);
+    flex-shrink: 0;
   }
 
   .tabs {
@@ -452,6 +456,7 @@
     margin-bottom: var(--spacing-lg);
     border-bottom: 1px solid var(--border-color);
     padding-bottom: var(--spacing-sm);
+    flex-shrink: 0;
   }
 
   .tab {
@@ -480,6 +485,7 @@
     padding: var(--spacing-md);
     background-color: var(--bg-elevated);
     border-radius: var(--radius-md);
+    flex-shrink: 0;
   }
 
   .create-form input {
@@ -502,6 +508,7 @@
 
   .plugin-content {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding-bottom: calc(var(--player-height) + var(--spacing-lg));
   }

@@ -2,11 +2,16 @@
     import { playlists, loadPlaylists } from "$lib/stores/library";
     import { goToPlaylistDetail } from "$lib/stores/view";
     import { createPlaylist } from "$lib/api/tauri";
-    import { playlistCovers, setPlaylistCover, removePlaylistCover } from "$lib/stores/playlistCovers";
+    import {
+        playlistCovers,
+        setPlaylistCover,
+        removePlaylistCover,
+    } from "$lib/stores/playlistCovers";
     import type { Writable } from "svelte/store";
-    
+
     // Explicitly type playlistCovers as a Writable<Record<string, string>>
-    const typedPlaylistCovers: Writable<Record<string, string>> = playlistCovers;
+    const typedPlaylistCovers: Writable<Record<string, string>> =
+        playlistCovers;
 
     let newPlaylistName = "";
     let isCreating = false;
@@ -40,31 +45,34 @@
     function initialsFromName(name: string) {
         if (!name) return "PL";
         const parts = name.trim().split(/\s+/);
-        const picked = parts.slice(0, 2).map(p => p[0]?.toUpperCase() ?? '');
-        return (picked.join('') || name.slice(0, 2).toUpperCase());
+        const picked = parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "");
+        return picked.join("") || name.slice(0, 2).toUpperCase();
     }
 
     function hashToColor(str: string) {
         let h = 0;
-        for (let i = 0; i < str.length; i++) h = (h << 5) - h + str.charCodeAt(i);
+        for (let i = 0; i < str.length; i++)
+            h = (h << 5) - h + str.charCodeAt(i);
         const hue = Math.abs(h) % 360;
         return `hsl(${hue} 30% 30%)`;
     }
 
     function generateSvgCover(name: string, size = 512) {
         const initials = initialsFromName(name);
-        const bg = hashToColor(name || 'playlist');
-        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'>` +
+        const bg = hashToColor(name || "playlist");
+        const svg =
+            `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'>` +
             `<rect width='100%' height='100%' fill='${bg}'/>` +
-            `<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Inter, system-ui, sans-serif' font-size='${Math.floor(size/3)}' fill='white' font-weight='700'>${initials}</text>` +
+            `<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Inter, system-ui, sans-serif' font-size='${Math.floor(size / 3)}' fill='white' font-weight='700'>${initials}</text>` +
             `</svg>`;
         return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
     }
 
     function getCoverSrc(playlist: { id: string; name: string }) {
-        const custom = $typedPlaylistCovers && $typedPlaylistCovers[playlist.id];
+        const custom =
+            $typedPlaylistCovers && $typedPlaylistCovers[playlist.id];
         if (custom) return custom;
-        return generateSvgCover(playlist.name || 'Playlist', 512);
+        return generateSvgCover(playlist.name || "Playlist", 512);
     }
 </script>
 
@@ -116,9 +124,17 @@
                 class="playlist-card"
                 on:click={() => goToPlaylistDetail(playlist.id)}
             >
-                    <div class="playlist-cover">
-                        <img src={getCoverSrc({ id: String(playlist.id), name: playlist.name })} alt="Playlist cover" loading="lazy" decoding="async" />
-                    </div>
+                <div class="playlist-cover">
+                    <img
+                        src={getCoverSrc({
+                            id: String(playlist.id),
+                            name: playlist.name,
+                        })}
+                        alt="Playlist cover"
+                        loading="lazy"
+                        decoding="async"
+                    />
+                </div>
                 <div class="playlist-info">
                     <span class="playlist-name truncate">{playlist.name}</span>
                     <span class="playlist-type">Playlist</span>
@@ -148,7 +164,9 @@
         display: flex;
         flex-direction: column;
         height: 100%;
+        min-height: 0;
         padding: var(--spacing-md);
+        overflow: hidden;
     }
 
     .view-header {
@@ -156,6 +174,7 @@
         align-items: center;
         justify-content: space-between;
         margin-bottom: var(--spacing-lg);
+        flex-shrink: 0;
     }
 
     .view-header h1 {
@@ -170,6 +189,7 @@
         padding: var(--spacing-md);
         background-color: var(--bg-elevated);
         border-radius: var(--radius-md);
+        flex-shrink: 0;
     }
 
     .create-form input {
@@ -190,6 +210,9 @@
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         gap: var(--spacing-lg);
         padding: var(--spacing-md);
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
     }
 
     .playlist-card {

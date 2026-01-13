@@ -22,12 +22,12 @@
             if (!$lyrics || $activeLineIdx < 0) {
                 return { activeWordIdx: -1, progress: 0 };
             }
-            
+
             const line = $lyrics.lines[$activeLineIdx];
             if (!line?.words || line.words.length === 0) {
                 return { activeWordIdx: -1, progress: 0 };
             }
-            
+
             // Find the word that's currently active (within its start-end range)
             let activeWordIdx = -1;
             for (let i = 0; i < line.words.length; i++) {
@@ -46,7 +46,7 @@
                     }
                 }
             }
-            
+
             // Calculate progress for active word using actual end time
             let progress = 0;
             if (activeWordIdx >= 0) {
@@ -54,28 +54,36 @@
                 const wordStart = word.time;
                 const wordEnd = word.endTime; // Use actual end time from Musixmatch
                 const duration = wordEnd - wordStart;
-                
+
                 if (duration > 0) {
                     const elapsed = $time - wordStart;
                     // Clamp to 100% when we reach the end time
-                    progress = Math.min(100, Math.max(0, (elapsed / duration) * 100));
+                    progress = Math.min(
+                        100,
+                        Math.max(0, (elapsed / duration) * 100),
+                    );
                 } else {
                     progress = 100;
                 }
             }
-            
+
             return { activeWordIdx, progress };
-        }
+        },
     );
 
     // Get word state: 'past', 'highlighted', or 'future'
-    function getWordState(lineIdx: number, wordIdx: number, currentActiveLine: number, currentActiveWord: number): string {
-        if (lineIdx < currentActiveLine) return 'past';
-        if (lineIdx > currentActiveLine) return 'future';
+    function getWordState(
+        lineIdx: number,
+        wordIdx: number,
+        currentActiveLine: number,
+        currentActiveWord: number,
+    ): string {
+        if (lineIdx < currentActiveLine) return "past";
+        if (lineIdx > currentActiveLine) return "future";
         // Same line
-        if (wordIdx < currentActiveWord) return 'past';
-        if (wordIdx === currentActiveWord) return 'highlighted';
-        return 'future';
+        if (wordIdx < currentActiveWord) return "past";
+        if (wordIdx === currentActiveWord) return "highlighted";
+        return "future";
     }
 
     // Scroll to active line
@@ -103,8 +111,8 @@
     <aside class="lyrics-panel">
         <header class="lyrics-header">
             <h3>Lyrics</h3>
-            <button 
-                class="close-btn" 
+            <button
+                class="close-btn"
                 on:click={() => lyricsVisible.set(false)}
                 title="Close lyrics panel"
                 aria-label="Close lyrics panel"
@@ -152,7 +160,8 @@
                 <div class="lyrics-lines">
                     {#each $lyricsData.lines as line, i}
                         {@const distance = Math.abs(i - $activeLine)}
-                        {@const hasWordSync = line.words && line.words.length > 0}
+                        {@const hasWordSync =
+                            line.words && line.words.length > 0}
                         {@const isActiveLine = i === $activeLine}
                         <div
                             class="lyric-line"
@@ -166,12 +175,22 @@
                         >
                             {#if hasWordSync && line.words}
                                 {#each line.words as word, wordIdx}
-                                    {@const wordState = getWordState(i, wordIdx, $activeLine, $wordSyncState.activeWordIdx)}
-                                    {@const progress = isActiveLine && wordIdx === $wordSyncState.activeWordIdx ? $wordSyncState.progress : 0}
-                                    <span 
+                                    {@const wordState = getWordState(
+                                        i,
+                                        wordIdx,
+                                        $activeLine,
+                                        $wordSyncState.activeWordIdx,
+                                    )}
+                                    {@const progress =
+                                        isActiveLine &&
+                                        wordIdx === $wordSyncState.activeWordIdx
+                                            ? $wordSyncState.progress
+                                            : 0}
+                                    <span
                                         class="lyric-word {wordState}"
                                         style="--word-progress: {progress}%;"
-                                    >{word.word}</span>{#if wordIdx < line.words.length - 1}{' '}{/if}
+                                        >{word.word}</span
+                                    >{#if wordIdx < line.words.length - 1}{" "}{/if}
                                 {/each}
                             {:else}
                                 {line.text}
@@ -220,11 +239,12 @@
         --lyrics-past-near: rgba(0, 0, 0, 0.45);
         --lyrics-past-mid: rgba(0, 0, 0, 0.3);
         --lyrics-past-far: rgba(0, 0, 0, 0.2);
-        
+
         width: 350px;
         min-width: 300px;
         max-width: 400px;
         height: 100%;
+        min-height: 0;
         background: linear-gradient(
             180deg,
             var(--bg-elevated) 0%,
@@ -350,12 +370,10 @@
     /* Distance-based blur effect like Apple Music */
     .lyric-line.near {
         color: var(--lyrics-near);
-
     }
 
     .lyric-line.mid {
         color: var(--lyrics-mid);
-
     }
 
     .lyric-line.far {

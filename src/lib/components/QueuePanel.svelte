@@ -374,6 +374,7 @@
         min-width: 300px;
         max-width: 400px;
         height: 100%;
+        min-height: 0;
         background: linear-gradient(
             180deg,
             var(--bg-elevated) 0%,

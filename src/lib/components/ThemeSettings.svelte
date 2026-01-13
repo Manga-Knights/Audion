@@ -296,6 +296,7 @@
 <style>
     .settings-view {
         height: 100%;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -313,6 +314,7 @@
 
     .settings-content {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
         padding: var(--spacing-md);
         padding-bottom: calc(var(--player-height) + var(--spacing-lg));

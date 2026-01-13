@@ -162,12 +162,15 @@
 <style>
     .main-view {
         flex: 1;
+        display: flex;
+        flex-direction: column;
         overflow: hidden;
         background-color: var(--bg-base);
     }
 
     .view-container {
-        height: 100%;
+        flex: 1;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         overflow: hidden;
