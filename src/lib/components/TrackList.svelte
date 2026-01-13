@@ -15,6 +15,7 @@
     import { contextMenu } from "$lib/stores/ui";
     import { albums, playlists, loadPlaylists } from "$lib/stores/library";
     import { pluginStore } from "$lib/stores/plugin-store";
+    import { goToAlbumDetail } from "$lib/stores/view";
 
     export let tracks: Track[] = [];
     export let title: string = "Tracks";
@@ -110,7 +111,7 @@
 
     async function handleContextMenu(e: MouseEvent, index: number) {
         e.preventDefault();
-        const track = tracks[index];
+        const track = sortedTracks[index];
 
         // Ensure playlists are loaded
         if ($playlists.length === 0) {
@@ -235,12 +236,16 @@
     <div class="list-body">
         {#each sortedTracks as track, index}
             {@const albumArt = getTrackAlbumArt(track)}
-            <button
+            <div
                 class="track-row"
                 class:playing={$currentTrack?.id === track.id}
                 on:click={() => handleTrackClick(index, track)}
                 on:dblclick={() => handleTrackDoubleClick(index, track)}
                 on:contextmenu={(e) => handleContextMenu(e, index)}
+                on:keydown={(e) =>
+                    e.key === "Enter" && handleTrackClick(index, track)}
+                role="button"
+                tabindex="0"
             >
                 <span class="col-num">
                     {#if $currentTrack?.id === track.id && $isPlaying}
@@ -331,12 +336,20 @@
                     >
                 </span>
                 {#if showAlbum}
-                    <span class="col-album truncate">{track.album || "-"}</span>
+                    <button
+                        class="col-album truncate"
+                        on:click|stopPropagation={() => {
+                            if (track.album_id) {
+                                goToAlbumDetail(track.album_id);
+                            }
+                        }}
+                        disabled={!track.album_id}>{track.album || "-"}</button
+                    >
                 {/if}
                 <span class="col-duration"
                     >{formatDuration(track.duration)}</span
                 >
-            </button>
+            </div>
         {:else}
             <div class="empty-state">
                 <svg
@@ -597,6 +610,7 @@
     .col-album {
         font-size: 0.875rem;
         color: var(--text-secondary);
+        text-align: left;
     }
 
     .col-album:hover {

@@ -10,6 +10,7 @@
         playFromQueue,
         removeFromQueue,
         clearUpcoming,
+        reorderQueue,
     } from "$lib/stores/player";
     import { albums } from "$lib/stores/library";
     import { formatDuration, getAlbumArtSrc } from "$lib/api/tauri";
@@ -40,7 +41,69 @@
         removeFromQueue(index);
     }
 
+    // Pointer-based drag and drop (works better in Tauri webview)
     let draggedIndex: number | null = null;
+    let dragOverIndex: number | null = null;
+    let isDragging = false;
+
+    function handlePointerDown(e: PointerEvent, actualIndex: number) {
+        e.preventDefault();
+        isDragging = true;
+        draggedIndex = actualIndex;
+
+        // Capture pointer events
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+        // Add global listeners
+        window.addEventListener("pointermove", handlePointerMove);
+        window.addEventListener("pointerup", handlePointerUp);
+    }
+
+    function handlePointerMove(e: PointerEvent) {
+        if (!isDragging || draggedIndex === null) return;
+
+        // Find element under pointer
+        const elementsUnderPointer = document.elementsFromPoint(
+            e.clientX,
+            e.clientY,
+        );
+        const queueTrack = elementsUnderPointer.find((el) =>
+            el.classList.contains("queue-track"),
+        );
+
+        if (queueTrack) {
+            const indexAttr = queueTrack.getAttribute("data-index");
+            if (indexAttr !== null) {
+                const overIndex = parseInt(indexAttr, 10);
+                if (overIndex !== draggedIndex) {
+                    dragOverIndex = overIndex;
+                } else {
+                    dragOverIndex = null;
+                }
+            }
+        } else {
+            dragOverIndex = null;
+        }
+    }
+
+    function handlePointerUp() {
+        if (
+            isDragging &&
+            draggedIndex !== null &&
+            dragOverIndex !== null &&
+            draggedIndex !== dragOverIndex
+        ) {
+            console.log("Reorder:", draggedIndex, "->", dragOverIndex);
+            reorderQueue(draggedIndex, dragOverIndex);
+        }
+
+        // Cleanup
+        isDragging = false;
+        draggedIndex = null;
+        dragOverIndex = null;
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+    }
 </script>
 
 {#if $isQueueVisible}
@@ -138,13 +201,33 @@
                         <span class="count">{upcomingTracks.length}</span>
                     </h4>
                     <div class="queue-list">
-                        {#each upcomingTracks as track, i (`upcoming-${i}-${track.id}`)}
+                        {#each upcomingTracks as track, i (track.id)}
                             {@const actualIndex = $queueIndex + 1 + i}
                             <div
                                 class="queue-track"
+                                class:dragging={draggedIndex === actualIndex}
+                                class:drag-over={dragOverIndex === actualIndex}
+                                data-index={actualIndex}
                                 animate:flip={{ duration: 200 }}
-                                draggable="true"
+                                role="listitem"
                             >
+                                <div
+                                    class="drag-handle"
+                                    on:pointerdown={(e) =>
+                                        handlePointerDown(e, actualIndex)}
+                                    title="Drag to reorder"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="currentColor"
+                                        width="16"
+                                        height="16"
+                                    >
+                                        <path
+                                            d="M3 15h18v-2H3v2zm0 4h18v-2H3v2zm0-8h18V9H3v2zm0-6v2h18V5H3z"
+                                        />
+                                    </svg>
+                                </div>
                                 <button
                                     class="track-btn"
                                     on:click={() =>
@@ -411,6 +494,41 @@
 
     .queue-track.past:hover {
         opacity: 1;
+    }
+
+    .queue-track.dragging {
+        opacity: 0.5;
+        background-color: var(--bg-highlight);
+    }
+
+    .queue-track.drag-over {
+        border-top: 2px solid var(--accent-primary);
+        margin-top: -2px;
+    }
+
+    .drag-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        color: var(--text-subdued);
+        cursor: grab;
+        opacity: 0;
+        transition: all var(--transition-fast);
+        flex-shrink: 0;
+    }
+
+    .queue-track:hover .drag-handle {
+        opacity: 1;
+    }
+
+    .drag-handle:hover {
+        color: var(--text-primary);
+    }
+
+    .drag-handle:active {
+        cursor: grabbing;
     }
 
     .track-btn {
