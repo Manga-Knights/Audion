@@ -1,7 +1,10 @@
 {
   "identifier": "mobile-default",
   "description": "Capability for the main window on mobile",
-  "platforms": ["android", "iOS"],
+  "platforms": [
+    "android",
+    "iOS"
+  ],
   "windows": [
     "main"
   ],
@@ -10,6 +13,7 @@
     "opener:default",
     "dialog:default",
     "notification:default",
+    "os:default",
     "fs:allow-read",
     {
       "identifier": "fs:allow-read-file",
