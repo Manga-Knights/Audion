@@ -1,8 +1,9 @@
-# Release Notes
+## Release Note - 1.1.11
 
-## Version 1.1.10
-
-- Add lyrics API for plugins and stores
-- Merged improvement by @Manga-Knights
-- Added Standard Commit Messages
+### Bug Fixes
+- **Logo**: Fixed issue with showing old logo
+- **Audio**: Fixed M4A file handling
+- **Mobile Download**: Fixed download functionality on mobile devices
+- **Mobile Lyrics**: Optimized lyrics UI for mobile
+- **Mobile Toast**: Fixed toast notifications on mobile
 

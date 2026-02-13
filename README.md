@@ -32,18 +32,13 @@ Audion is a privacy-focused music player that brings the Spotify experience to y
 <summary>Click to view screenshots</summary>
 
 <p align="center">
-  <img src="promotional/mainpage.png" alt="Main Player" width="100%">
-  <br><em>Clean, modern interface</em>
-</p>
-
-<p align="center">
-  <img src="promotional/mainwithlyrics.png" alt="Lyrics Panel" width="100%">
-  <br><em>Real-time synced lyrics</em>
-</p>
-
-<p align="center">
-  <img src="promotional/fullscreen.png" alt="Fullscreen Mode" width="100%">
+  <img width="1343" height="795" alt="image" src="https://github.com/user-attachments/assets/f4d0f1d4-8147-4d81-b010-502da196b432"/>
   <br><em>Immersive full-screen player</em>
+</p>
+
+<p align="center">
+  <img width="1345" height="793" alt="image" src="https://github.com/user-attachments/assets/00c79e80-48a2-4142-8530-27357195c3b3" />
+  <br><em>Real-time synced lyrics</em>
 </p>
 
 </details>
@@ -101,6 +96,58 @@ npm run tauri build  # Production build
 ```
 
 **Tech stack:** Tauri 2.0, SvelteKit, Rust, SQLite
+
+---
+
+## 🐧 Linux Troubleshooting
+
+### "Could not create surfaceless EGL display" Error
+
+If you encounter this error when running the AppImage:
+```
+could not create surfaceless egl display bad alloc aborting
+```
+
+**Solution 1: Use software rendering**
+```bash
+WEBKIT_DISABLE_COMPOSITING_MODE=1 ./Audion.AppImage
+```
+
+**Solution 2: Force software rendering with Mesa**
+```bash
+LIBGL_ALWAYS_SOFTWARE=1 ./Audion.AppImage
+```
+
+**Solution 3: Disable GPU acceleration**
+```bash
+WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Audion.AppImage
+```
+
+**Solution 4: Combined flags (most compatible)**
+```bash
+WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Audion.AppImage
+```
+
+**Permanent fix:** Add the environment variable to your `.bashrc` or create a desktop entry with the flag.
+
+### Missing Dependencies
+
+Ensure you have the required WebKitGTK libraries installed:
+
+**Ubuntu/Debian:**
+```bash
+sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libayatana-appindicator3-1
+```
+
+**Fedora:**
+```bash
+sudo dnf install webkit2gtk4.1 gtk3 libappindicator-gtk3
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3
+```
 
 ---
 

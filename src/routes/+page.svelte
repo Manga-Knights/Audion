@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import "../app.css";
   import Sidebar from "$lib/components/Sidebar.svelte";
   import MainView from "$lib/components/MainView.svelte";
@@ -23,7 +23,10 @@
   import { isMiniPlayer } from "$lib/stores/ui";
   import { pluginStore } from "$lib/stores/plugin-store";
   import { appSettings } from "$lib/stores/settings";
-  import { isMobile, isMobileSidebarOpen, closeMobileSidebar } from "$lib/stores/mobile";
+  import { isMobile, mobileSearchOpen } from "$lib/stores/mobile";
+  import MobileBottomNav from "$lib/components/MobileBottomNav.svelte";
+  import { searchQuery, clearSearch } from "$lib/stores/search";
+  import { currentView, goToHome } from "$lib/stores/view";
   import PluginUpdateDialog from "$lib/components/PluginUpdateDialog.svelte";
 
   let isLoading = true;
@@ -34,6 +37,38 @@
     if (!$appSettings.developerMode) {
       e.preventDefault();
     }
+  }
+
+  // Mobile search handling
+  let mobileSearchInput = '';
+  let mobileSearchInputEl: HTMLInputElement;
+  let mobileSearchTimer: ReturnType<typeof setTimeout>;
+
+  function handleMobileSearchInput(e: Event) {
+    const target = e.target as HTMLInputElement;
+    mobileSearchInput = target.value;
+    clearTimeout(mobileSearchTimer);
+    mobileSearchTimer = setTimeout(() => {
+      searchQuery.set(mobileSearchInput);
+    }, 200);
+  }
+
+  function closeMobileSearch() {
+    mobileSearchOpen.set(false);
+    mobileSearchInput = '';
+    clearSearch();
+  }
+
+  // Auto-focus mobile search input when opened
+  $: if ($mobileSearchOpen && mobileSearchInputEl) {
+    tick().then(() => mobileSearchInputEl?.focus());
+  }
+
+  // On mobile, default to home view on first load
+  let mobileInitialized = false;
+  $: if ($isMobile && !mobileInitialized && !isLoading) {
+    mobileInitialized = true;
+    goToHome();
   }
 
   onMount(async () => {
@@ -107,42 +142,39 @@
       <p>Loading your music library...</p>
     </div>
   {:else}
-    <div class="app-layout" class:mobile={$isMobile}>
-      <!-- Mobile sidebar overlay -->
-      {#if $isMobile}
-        {#if $isMobileSidebarOpen}
-          <!-- svelte-ignore a11y-click-events-have-key-events -->
-          <div class="sidebar-overlay" on:click={closeMobileSidebar} role="presentation"></div>
-          <div class="sidebar-drawer">
-            <Sidebar on:navigate={closeMobileSidebar} />
-          </div>
-        {/if}
-      {:else}
-        <Sidebar />
-      {/if}
-      <MainView />
-      {#if !$isMobile}
-        <LyricsPanel />
-        <QueuePanel />
-      {/if}
+    {#if $isMobile}
+      <!-- ========= MOBILE LAYOUT (Spotify-like) ========= -->
+      <div class="mobile-layout">
+        <div class="mobile-content">
+          <MainView />
+        </div>
+      </div>
+
+      <!-- PlayerBar always rendered for audio element -->
+      <PlayerBar bind:audioElementRef={audioElement} hidden={$isMiniPlayer} />
+      <MobileBottomNav />
+
       <FullScreenPlayer />
       <ContextMenu />
-    </div>
-    <PlayerBar bind:audioElementRef={audioElement} hidden={$isMiniPlayer} />
-    {#if !$isMobile}
-      <MiniPlayer />
-    {/if}
-    <!-- Mobile: Queue and Lyrics as full-screen overlays -->
-    {#if $isMobile}
       <QueuePanel />
       <LyricsPanel />
-    {/if}
-    <ToastContainer />
-    {#if !$isMobile}
+    {:else}
+      <!-- ========= DESKTOP LAYOUT ========= -->
+      <div class="app-layout">
+        <Sidebar />
+        <MainView />
+        <LyricsPanel />
+        <QueuePanel />
+        <FullScreenPlayer />
+        <ContextMenu />
+      </div>
+      <PlayerBar bind:audioElementRef={audioElement} hidden={$isMiniPlayer} />
+      <MiniPlayer />
       <KeyboardShortcuts />
       <KeyboardShortcutsHelp />
     {/if}
 
+    <ToastContainer />
     {#if $pluginStore.pendingUpdates.length > 0}
       <PluginUpdateDialog on:close={() => pluginStore.clearPendingUpdates()} />
     {/if}
@@ -203,46 +235,20 @@
     overflow: hidden;
   }
 
-  /* Mobile sidebar drawer overlay */
-  .sidebar-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.6);
-    z-index: 200;
-    animation: fadeIn 0.2s ease;
-  }
-
-  .sidebar-drawer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 280px;
-    max-width: 85vw;
-    height: 100%;
-    z-index: 201;
-    animation: slideInLeft 0.25s ease;
+  /* ========= MOBILE LAYOUT ========= */
+  .mobile-layout {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background-color: var(--bg-base);
   }
 
-  @keyframes slideInLeft {
-    from {
-      transform: translateX(-100%);
-    }
-    to {
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  /* Mobile layout adjustments */
-  .app-layout.mobile {
+  .mobile-content {
+    flex: 1;
+    display: flex;
     flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
   }
 </style>
